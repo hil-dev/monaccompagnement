@@ -226,7 +226,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <tr>
                     <th>ID</th><th>Nom</th><th>Email</th><th>Série</th><th>Mention</th>
                     <th>Âge</th><th>Moyenne</th><th>Profession rêvée</th><th>École rêvée</th>
-                    <th>Téléphone</th><th>Code accompagnement</th><th>Inscrit via</th><th>Créé le</th>
+                    <th>Code accompagnement</th><th>Inscrit via</th><th>Créé le</th>
                 </tr>
             </thead>
             <tbody>
@@ -241,7 +241,6 @@ require_once __DIR__ . '/../includes/header.php';
                     <td><?= htmlspecialchars($u['moyenne'] !== null ? (string) $u['moyenne'] : '—') ?></td>
                     <td><?= htmlspecialchars($u['profession_reve'] ?? '—') ?></td>
                     <td><?= htmlspecialchars($u['ecole_reve'] ?? '—') ?></td>
-                    <td><?= htmlspecialchars($u['numero_telephone'] ?? '—') ?></td>
                     <td><?= htmlspecialchars($u['code_accompagnement'] ?? '—') ?></td>
                     <td><?= htmlspecialchars($u['auth_provider']) ?></td>
                     <td><?= htmlspecialchars($u['created_at']) ?></td>

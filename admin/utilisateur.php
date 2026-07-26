@@ -48,7 +48,6 @@ $labels = [
     'moyenne' => 'Moyenne',
     'profession_reve' => 'Profession de rêve',
     'ecole_reve' => 'École de rêve',
-    'numero_telephone' => 'Téléphone',
     'code_accompagnement' => 'Code accompagnement',
     'auth_provider' => 'Inscrit via',
     'email_verified' => 'Email vérifié',
