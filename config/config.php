@@ -62,12 +62,12 @@ define('GOOGLE_REDIRECT_URI', env('GOOGLE_REDIRECT_URI', APP_URL . '/auth/google
 // --- Envoi d'emails (SMTP) ---
 define('SMTP_HOST', env('SMTP_HOST', 'smtp.hostinger.com'));
 define('SMTP_PORT', (int) env('SMTP_PORT', 465));
-define('SMTP_USERNAME', env('SMTP_USERNAME', 'contact@orientasup.online'));
+define('SMTP_USERNAME', env('SMTP_USERNAME', 'contact@monaccompagement.online'));
 define('SMTP_PASSWORD', env('SMTP_PASSWORD', 'DouDou@1234'));
 define('SMTP_SECURE', env('SMTP_SECURE', 'ssl')); // ssl | tls
-define('SMTP_FROM_EMAIL', env('SMTP_FROM_EMAIL', 'contact@orientasup.online'));
+define('SMTP_FROM_EMAIL', env('SMTP_FROM_EMAIL', 'contact@monaccompagement.online'));
 define('SMTP_FROM_NAME', env('SMTP_FROM_NAME', APP_NAME));
-define('SMTP_REPLY_TO', env('SMTP_REPLY_TO', 'contact@orientasup.online'));
+define('SMTP_REPLY_TO', env('SMTP_REPLY_TO', 'contact@monaccompagement.online'));
 
 // --- Sessions sécurisées ---
 if (session_status() === PHP_SESSION_NONE) {
