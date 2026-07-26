@@ -1,0 +1,5 @@
+Place ici l'illustration "etudiant-reflexion.png" (étudiant(e) en pleine réflexion,
+style 3D façon Pixar, palette violet/or, cohérent avec l'image de référence envoyée).
+Je n'ai pas d'outil de génération d'image dans cet environnement — tu peux la générer
+avec un outil externe (Midjourney, DALL-E, etc.) en reprenant le style de ton visuel
+de référence, puis simplement déposer le fichier ici sous ce nom.
