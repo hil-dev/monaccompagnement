@@ -132,6 +132,14 @@ require_once __DIR__ . '/../includes/header.php';
         }
         .admin-drawer-overlay.open{ display:block; }
 
+        .admin-row-hidden{ display:none; }
+        .admin-voir-plus-wrap{
+            display:flex;
+            justify-content:center;
+            margin:.75rem 0 1.75rem;
+        }
+        .admin-voir-plus{ min-width:140px; }
+
         @media (max-width: 640px){
             .admin-nav{
                 position:fixed;
@@ -229,9 +237,9 @@ require_once __DIR__ . '/../includes/header.php';
                     <th>Code accompagnement</th><th>Inscrit via</th><th>Créé le</th>
                 </tr>
             </thead>
-            <tbody>
-                <?php foreach ($users as $u): ?>
-                <tr class="admin-row-link" tabindex="0" data-href="/admin/utilisateur.php?id=<?= $u['id'] ?>">
+            <tbody id="usersTableBody">
+                <?php foreach ($users as $i => $u): ?>
+                <tr class="admin-row-link<?= $i >= 10 ? ' admin-row-hidden' : '' ?>" tabindex="0" data-href="/admin/utilisateur.php?id=<?= $u['id'] ?>">
                     <td><?= $u['id'] ?></td>
                     <td><?= htmlspecialchars($u['nom_complet'] ?? '—') ?></td>
                     <td><?= htmlspecialchars($u['email']) ?></td>
@@ -249,6 +257,11 @@ require_once __DIR__ . '/../includes/header.php';
             </tbody>
         </table>
     </div>
+    <?php if (count($users) > 10): ?>
+        <div class="admin-voir-plus-wrap">
+            <button type="button" class="btn btn-outline admin-voir-plus" data-target="usersTableBody">Voir plus</button>
+        </div>
+    <?php endif; ?>
 
     <p class="admin-section-title">Paiements finalisés</p>
     <div class="admin-table-wrap">
@@ -256,9 +269,9 @@ require_once __DIR__ . '/../includes/header.php';
             <thead>
                 <tr><th>ID</th><th>Utilisateur</th><th>Formule</th><th>Montant</th><th>Statut</th><th>Référence</th><th>Date</th></tr>
             </thead>
-            <tbody>
-                <?php foreach ($paiements as $p): ?>
-                <tr>
+            <tbody id="paiementsTableBody">
+                <?php foreach ($paiements as $i => $p): ?>
+                <tr class="<?= $i >= 10 ? 'admin-row-hidden' : '' ?>">
                     <td><?= $p['id'] ?></td>
                     <td><?= htmlspecialchars($p['nom_complet'] ?? $p['user_email']) ?></td>
                     <td><?= htmlspecialchars($p['formule_nom']) ?></td>
@@ -271,6 +284,11 @@ require_once __DIR__ . '/../includes/header.php';
             </tbody>
         </table>
     </div>
+    <?php if (count($paiements) > 10): ?>
+        <div class="admin-voir-plus-wrap">
+            <button type="button" class="btn btn-outline admin-voir-plus" data-target="paiementsTableBody">Voir plus</button>
+        </div>
+    <?php endif; ?>
 </div>
 
 <script>
@@ -303,6 +321,23 @@ require_once __DIR__ . '/../includes/header.php';
     // Ferme le drawer si on repasse en desktop
     window.addEventListener('resize', function () {
         if (window.innerWidth > 640) closeDrawer();
+    });
+})();
+
+(function () {
+    var boutons = document.querySelectorAll('.admin-voir-plus');
+    boutons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var tbody = document.getElementById(btn.dataset.target);
+            if (!tbody) return;
+            var estOuvert = btn.dataset.open === '1';
+            var lignesCachees = tbody.querySelectorAll('.admin-row-hidden');
+            lignesCachees.forEach(function (tr) {
+                tr.classList.toggle('admin-row-hidden', estOuvert);
+            });
+            btn.dataset.open = estOuvert ? '0' : '1';
+            btn.textContent = estOuvert ? 'Voir plus' : 'Voir moins';
+        });
     });
 })();
 </script>
