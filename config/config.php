@@ -70,14 +70,27 @@ define('SMTP_FROM_NAME', env('SMTP_FROM_NAME', APP_NAME));
 define('SMTP_REPLY_TO', env('SMTP_REPLY_TO', 'contact@monaccompagement.online'));
 
 // --- Sessions sécurisées ---
+const SESSION_LIFETIME_SECONDS = 600; // 10 minutes d'inactivité
+
 if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.gc_maxlifetime', (string) SESSION_LIFETIME_SECONDS);
     session_set_cookie_params([
-        'lifetime' => 0,
+        'lifetime' => SESSION_LIFETIME_SECONDS,
         'path' => '/',
         'httponly' => true,
         'samesite' => 'Lax',
     ]);
     session_start();
+
+    // Déconnexion automatique si la session est inactive depuis plus de 10 minutes.
+    // (gc_maxlifetime seul n'est pas fiable à 100% car le garbage collector de PHP
+    // ne s'exécute pas forcément à chaque requête, donc on vérifie nous-mêmes.)
+    if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > SESSION_LIFETIME_SECONDS) {
+        $_SESSION = [];
+        session_destroy();
+        session_start();
+    }
+    $_SESSION['last_activity'] = time();
 }
 
 error_log('SESSION ID: ' . session_id() . ' | SAVE PATH: ' . session_save_path() . ' | writable: ' . (is_writable(session_save_path()) ? 'oui' : 'NON') . ' | contenu: ' . print_r($_SESSION, true));
