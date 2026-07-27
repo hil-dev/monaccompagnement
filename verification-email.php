@@ -92,6 +92,33 @@ require_once __DIR__ . '/includes/header.php';
         <h1 class="auth-title">Vérifie ton adresse email</h1>
         <p class="auth-note">Un code à 6 chiffres a été envoyé à <strong><?= htmlspecialchars($emailMasque) ?></strong>.</p>
 
+        <p class="alerte-spam">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <span>Va dans ta boîte de réception pour trouver le code. Si tu ne le vois pas, pense à vérifier tes <strong>spams / courriers indésirables</strong>.</span>
+        </p>
+
+        <style>
+            .alerte-spam{
+                display:flex;
+                align-items:flex-start;
+                gap:10px;
+                background:#fff4e5;
+                border:1.5px solid #f0a93a;
+                color:#8a5a00;
+                border-radius:10px;
+                padding:12px 14px;
+                margin:14px 0 20px;
+                font-size:0.92rem;
+                line-height:1.4;
+                text-align:left;
+            }
+            .alerte-spam svg{ color:#e08c00; margin-top:1px; }
+        </style>
+
         <?php if ($erreur): ?>
             <p class="auth-erreur"><?= htmlspecialchars($erreur) ?></p>
         <?php endif; ?>
