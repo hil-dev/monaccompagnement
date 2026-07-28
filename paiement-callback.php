@@ -130,5 +130,41 @@ try {
 
 unset($_SESSION['formule_choisie']);
 
-header('Location: /orientation-formulaire.php');
+// 9. Le profil d'orientation a déjà été rempli AVANT le paiement (nouveau flux).
+// On récupère les dernières informations saisies pour construire le message WhatsApp.
+$stmtProfil = $pdo->prepare('
+    SELECT * FROM profils_orientation
+    WHERE user_id = ?
+    ORDER BY created_at DESC
+    LIMIT 1
+');
+$stmtProfil->execute([$paiement['user_id']]);
+$profil = $stmtProfil->fetch();
+
+if (!$profil) {
+    // Filet de sécurité : si aucun profil n'est trouvé (cas anormal), on renvoie au formulaire
+    header('Location: /orientation-formulaire.php');
+    exit;
+}
+
+$lignes = [
+    "Bonjour, je suis {$profil['prenom']} {$profil['nom']}.",
+    "Mon matricule d'accompagnement : {$userPaiement['code_accompagnement']}",
+    "Série : {$profil['serie']}",
+    "Mention : {$profil['mention']}",
+    "Moyenne : {$profil['moyenne']}/20",
+];
+if (!empty($profil['profession_reve'])) {
+    $lignes[] = "Profession envisagée : {$profil['profession_reve']}";
+}
+if (!empty($profil['ecole_reve'])) {
+    $lignes[] = "Université envisagée : {$profil['ecole_reve']}";
+}
+$lignes[] = "Je souhaite être accompagné(e) dans le choix de ma filière.";
+
+$message = implode("\n", $lignes);
+$numeroWhatsapp = '22953096255'; // +229 53 09 62 55, sans le "+" ni espaces
+$whatsappUrl = 'https://wa.me/' . $numeroWhatsapp . '?text=' . rawurlencode($message);
+
+header('Location: ' . $whatsappUrl);
 exit;
