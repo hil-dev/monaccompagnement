@@ -22,21 +22,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $user = AuthService::login($email, $password);
 
-        if (empty($user['email_verified'])) {
-            $pdo = Database::getConnection();
-            $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            $expiresAt = date('Y-m-d H:i:s', time() + 900);
-            $update = $pdo->prepare('UPDATE users SET verification_code = ?, verification_code_expires_at = ? WHERE id = ?');
-            $update->execute([$code, $expiresAt, $user['id']]);
-            MailService::sendVerificationCode($user['email'], $user['nom_complet'] ?? '', $code);
-
-            $_SESSION['pending_verification_user_id'] = $user['id'];
-            $_SESSION['verification_last_sent'] = time();
-
-            header('Location: /verification-email.php');
-            exit;
-        }
-
         AuthService::startSession($user);
         $redirect = $_SESSION['redirect_after_login']
         ?? (isset($_SESSION['formule_choisie']) ? '/paiement.php' : '/index.php');
@@ -63,6 +48,8 @@ require_once __DIR__ . '/includes/header.php';
 
         <?php if ($erreur): ?>
             <p class="auth-erreur"><?= htmlspecialchars($erreur) ?></p>
+        <?php elseif (($_GET['inscription'] ?? null) === 'success'): ?>
+            <p class="auth-succes">✅ Compte créé avec succès ! Connecte-toi ci-dessous.</p>
         <?php endif; ?>
 
         <form method="POST" class="auth-form">

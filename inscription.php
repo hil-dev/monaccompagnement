@@ -35,21 +35,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $userId = AuthService::register($nomComplet, $email, $password, $serie);
             $pdo = Database::getConnection();
 
-            $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            $expiresAt = date('Y-m-d H:i:s', time() + 900); // 15 minutes
-            $update = $pdo->prepare('UPDATE users SET verification_code = ?, verification_code_expires_at = ? WHERE id = ?');
-            $update->execute([$code, $expiresAt, $userId]);
+            // Vérification par email désactivée : le compte est directement marqué comme vérifié
+            $update = $pdo->prepare('UPDATE users SET email_verified = 1 WHERE id = ?');
+            $update->execute([$userId]);
 
             $stmt = $pdo->prepare('SELECT * FROM users WHERE id = ?');
             $stmt->execute([$userId]);
             $newUser = $stmt->fetch();
 
-            MailService::sendVerificationCode($newUser['email'], $newUser['nom_complet'] ?? '', $code);
+            MailService::sendWelcomeEmail($newUser['email'], $newUser['nom_complet'] ?? '');
 
-            $_SESSION['pending_verification_user_id'] = $userId;
-            $_SESSION['verification_last_sent'] = time();
-
-            header('Location: /verification-email.php');
+            header('Location: /connexion.php?inscription=success');
             exit;
         } catch (\RuntimeException $e) {
             $erreur = $e->getMessage();
