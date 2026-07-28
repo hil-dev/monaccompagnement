@@ -26,7 +26,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nom = trim($_POST['nom'] ?? '');
     $prenom = trim($_POST['prenom'] ?? '');
     $serie = trim($_POST['serie'] ?? '');
-    $age = trim($_POST['age'] ?? '');
     $mention = trim($_POST['mention'] ?? '');
     $moyenne = trim($_POST['moyenne'] ?? '');
     $professionReve = trim($_POST['profession_reve'] ?? '');
@@ -41,8 +40,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $erreur = 'Merci de renseigner ton prénom.';
     } elseif (!in_array($serie, \App\Auth\AuthService::SERIES, true)) {
         $erreur = 'Merci de sélectionner une série valide.';
-    } elseif (!ctype_digit($age) || (int) $age < 10 || (int) $age > 60) {
-        $erreur = 'Merci de renseigner un âge valide.';
     } elseif (!in_array($mention, \App\Auth\AuthService::MENTIONS, true)) {
         $erreur = 'Merci de sélectionner une mention valide.';
     } elseif (!is_numeric($moyenne) || (float) $moyenne < 0 || (float) $moyenne > 20) {
@@ -55,15 +52,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmtInsert = $pdo->prepare('
                 INSERT INTO profils_orientation
-                    (user_id, nom, prenom, serie, age, mention, moyenne, profession_reve, ecole_reve)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (user_id, nom, prenom, serie, mention, moyenne, profession_reve, ecole_reve)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ');
             $stmtInsert->execute([
                 $user['id'],
                 $nom,
                 $prenom,
                 $serie,
-                (int) $age,
                 $mention,
                 (float) $moyenne,
                 $professionReve !== '' ? $professionReve : null,
@@ -73,14 +69,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // On complète également la ligne de l'utilisateur avec les dernières infos saisies
             $stmtUpdateUser = $pdo->prepare('
                 UPDATE users
-                SET nom_complet = ?, prenom = ?, serie = ?, age = ?, mention = ?, moyenne = ?, profession_reve = ?, ecole_reve = ?
+                SET nom_complet = ?, prenom = ?, serie = ?, mention = ?, moyenne = ?, profession_reve = ?, ecole_reve = ?
                 WHERE id = ?
             ');
             $stmtUpdateUser->execute([
                 trim($prenom . ' ' . $nom),
                 $prenom,
                 $serie,
-                (int) $age,
                 $mention,
                 (float) $moyenne,
                 $professionReve !== '' ? $professionReve : null,
@@ -95,15 +90,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 "Bonjour, je suis {$prenom} {$nom}.",
                 "Mon matricule d'accompagnement : {$user['code_accompagnement']}",
                 "Série : {$serie}",
-                "Âge : {$age} ans",
                 "Mention : {$mention}",
                 "Moyenne : {$moyenne}/20",
             ];
             if ($professionReve !== '') {
-                $lignes[] = "Profession de rêve : {$professionReve}";
+                $lignes[] = "Profession envisagée : {$professionReve}";
             }
             if ($ecoleReve !== '') {
-                $lignes[] = "École de rêve : {$ecoleReve}";
+                $lignes[] = "Université envisagée : {$ecoleReve}";
             }
             $lignes[] = "Je souhaite être accompagné(e) dans le choix de ma filière.";
 
@@ -155,9 +149,6 @@ require_once __DIR__ . '/includes/header.php';
                 <?php endforeach; ?>
             </select>
 
-            <label for="age">Âge</label>
-            <input type="number" id="age" name="age" min="10" max="60" required value="<?= htmlspecialchars($_POST['age'] ?? '') ?>">
-
             <label for="mention">Mention</label>
             <select id="mention" name="mention" required>
                 <option value="">-- Choisis ta mention --</option>
@@ -169,10 +160,10 @@ require_once __DIR__ . '/includes/header.php';
             <label for="moyenne">Moyenne (sur 20)</label>
             <input type="number" id="moyenne" name="moyenne" step="0.01" min="0" max="20" required value="<?= htmlspecialchars($_POST['moyenne'] ?? '') ?>">
 
-            <label for="profession_reve">Profession de rêve <span style="font-weight:400;">(optionnel)</span></label>
+            <label for="profession_reve">Profession envisagée <span style="font-weight:400;">(optionnel)</span></label>
             <input type="text" id="profession_reve" name="profession_reve" value="<?= htmlspecialchars($_POST['profession_reve'] ?? '') ?>">
 
-            <label for="ecole_reve">École de rêve <span style="font-weight:400;">(optionnel)</span></label>
+            <label for="ecole_reve">Université envisagée <span style="font-weight:400;">(optionnel)</span></label>
             <input type="text" id="ecole_reve" name="ecole_reve" value="<?= htmlspecialchars($_POST['ecole_reve'] ?? '') ?>">
 
             <button type="submit" class="btn btn-primary btn-block" style="margin-top: 12px;">Envoyer</button>

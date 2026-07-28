@@ -233,7 +233,7 @@ require_once __DIR__ . '/../includes/header.php';
             <thead>
                 <tr>
                     <th>ID</th><th>Nom</th><th>Email</th><th>Série</th><th>Mention</th>
-                    <th>Âge</th><th>Moyenne</th><th>Profession rêvée</th><th>École rêvée</th>
+                    <th>Âge</th><th>Moyenne</th><th>Profession envisagée</th><th>Université envisagée</th>
                     <th>Code accompagnement</th><th>Inscrit via</th><th>Créé le</th>
                 </tr>
             </thead>
