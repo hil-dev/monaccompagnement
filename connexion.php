@@ -1,105 +1,170 @@
 <?php
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/src/Database/Database.php';
+require_once __DIR__ . '/src/Payment/FedaPayService.php';
 require_once __DIR__ . '/src/Auth/AuthService.php';
 require_once __DIR__ . '/src/Mail/MailService.php';
 
 use App\Auth\AuthService;
+
 use App\Database\Database;
+use App\Payment\FedaPayService;
 use App\Mail\MailService;
 
-if (AuthService::isLoggedIn()) {
-    header('Location: /index.php');
+if (!isset($_GET['id'])) {
+    header('Location: /profil.php?payment=error');
     exit;
 }
 
-$erreur = null;
+$transactionId = (int) $_GET['id'];
+$pdo = Database::getConnection();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
-
-    try {
-        $user = AuthService::login($email, $password);
-
-        AuthService::startSession($user);
-        $redirect = $_SESSION['redirect_after_login']
-        ?? (isset($_SESSION['formule_choisie']) ? '/paiement.php' : '/index.php');
-        unset($_SESSION['redirect_after_login']);
-        header('Location: ' . $redirect);
-        exit;
-    } catch (\RuntimeException $e) {
-        $erreur = $e->getMessage();
-    }
+// 1. Vérification de la transaction directement auprès de FedaPay (jamais faire confiance au paramètre GET seul)
+try {
+    $transaction = FedaPayService::fetchTransaction($transactionId);
+} catch (\Throwable $e) {
+    error_log('Erreur vérification transaction FedaPay : ' . $e->getMessage());
+    header('Location: /profil.php?payment=error');
+    exit;
 }
 
-$pageTitle = 'Connexion — ' . APP_NAME;
-require_once __DIR__ . '/includes/header.php';
-?>
+// 2. On retrouve le paiement correspondant en base
+$stmt = $pdo->prepare('SELECT * FROM paiements WHERE fedapay_transaction_id = ?');
+$stmt->execute([$transactionId]);
+$paiement = $stmt->fetch();
 
-<section class="auth-page">
-    <div class="auth-card">
-        <a href="/index.php" class="auth-retour">
-            <span aria-hidden="true">←</span> Retour
-        </a>
+if (!$paiement) {
+    error_log("Paiement introuvable pour la transaction FedaPay {$transactionId}");
+    header('Location: /profil.php?payment=error');
+    exit;
+}
 
-        <p class="eyebrow eyebrow-center">Bon retour</p>
-        <h1 class="auth-title">Connecte-toi à ton espace</h1>
+// 3. Idempotence : si déjà traité, on ne refait rien
+if ($paiement['statut'] === 'reussi') {
+    header('Location: /profil.php?payment=already_processed');
+    exit;
+}
 
-        <?php if ($erreur): ?>
-            <p class="auth-erreur"><?= htmlspecialchars($erreur) ?></p>
-        <?php elseif (($_GET['inscription'] ?? null) === 'success'): ?>
-            <p class="auth-succes">✅ Compte créé avec succès ! Connecte-toi ci-dessous.</p>
-        <?php endif; ?>
+// 4. Le paiement n'a pas été approuvé côté FedaPay
+if (($transaction['status'] ?? '') !== 'approved') {
+    $pdo->prepare('UPDATE paiements SET statut = "echoue" WHERE id = ?')->execute([$paiement['id']]);
+    header('Location: /profil.php?payment=declined');
+    exit;
+}
 
-        <form method="POST" class="auth-form">
-            <label for="email">Adresse email</label>
-            <input type="email" id="email" name="email" required autocomplete="email" placeholder="toi@exemple.com" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
+// 5. Vérification anti-fraude : le montant payé doit correspondre exactement au montant attendu
+$montantFeda = (int) $transaction['amount'];
+$montantDb   = (int) $paiement['montant'];
 
-            <label for="password">Mot de passe</label>
-            <div class="password-field">
-                <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••">
-                <button type="button" class="password-toggle" id="passwordToggle" aria-label="Afficher le mot de passe">
-                    <svg id="eyeIconVisible" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                    <svg id="eyeIconHidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
-                        <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.3 20.3 0 0 1 5.06-6.06M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a20.3 20.3 0 0 1-3.22 4.44M14.12 14.12a3 3 0 1 1-4.24-4.24"></path>
-                        <line x1="1" y1="1" x2="23" y2="23"></line>
-                    </svg>
-                </button>
-            </div>
+if ($montantFeda !== $montantDb) {
+    error_log("❌ Montant incohérent — DB: {$montantDb} | FedaPay: {$montantFeda} | transaction {$transactionId}");
+    $pdo->prepare('UPDATE paiements SET statut = "echoue" WHERE id = ?')->execute([$paiement['id']]);
+    header('Location: /profil.php?payment=error');
+    exit;
+}
 
-            <label class="auth-remember">
-                <input type="checkbox" id="rememberMe" name="remember_me">
-                Se souvenir de moi
-            </label>
+// 6. Tout est bon → on valide le paiement
+$pdo->prepare('UPDATE paiements SET statut = "reussi" WHERE id = ?')->execute([$paiement['id']]);
 
-            <p class="auth-switch" style="margin: -8px 0 4px; text-align:right;"><a href="/mot-de-passe-oublie.php">Mot de passe oublié ?</a></p>
+$stmtFormuleNom = $pdo->prepare('SELECT nom FROM formules WHERE id = ?');
+$stmtFormuleNom->execute([$paiement['formule_id']]);
+$formuleNom = (string) $stmtFormuleNom->fetchColumn();
 
-            <button type="submit" class="btn btn-primary btn-block">Se connecter</button>
-        </form>
+// 6bis. Mise à jour du compteur de places : on décrémente, et si ça tombe à 0, on remet à places_totales.
+// On utilise une transaction + FOR UPDATE pour éviter que deux paiements confirmés en même temps
+// ne lisent la même valeur de places_restantes avant que l'un des deux ne l'ait mise à jour.
+$pdo->beginTransaction();
+$stmtFormule = $pdo->prepare('SELECT places_restantes, places_totales FROM formules WHERE id = ? FOR UPDATE');
+$stmtFormule->execute([$paiement['formule_id']]);
+$formuleRow = $stmtFormule->fetch();
 
-        <p class="auth-switch">Pas encore de compte ? <a href="/inscription.php">Crée-en un</a></p>
-    </div>
-</section>
+if ($formuleRow) {
+    $nouvellesPlaces = (int) $formuleRow['places_restantes'] - 1;
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const toggle = document.getElementById('passwordToggle');
-    const passwordInput = document.getElementById('password');
-    const eyeVisible = document.getElementById('eyeIconVisible');
-    const eyeHidden = document.getElementById('eyeIconHidden');
+    if ($nouvellesPlaces <= 0) {
+        $nouvellesPlaces = (int) $formuleRow['places_totales'];
+    }
 
-    toggle.addEventListener('click', () => {
-        const isHidden = passwordInput.type === 'password';
-        passwordInput.type = isHidden ? 'text' : 'password';
-        eyeVisible.style.display = isHidden ? 'none' : 'block';
-        eyeHidden.style.display = isHidden ? 'block' : 'none';
-        toggle.setAttribute('aria-label', isHidden ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
-    });
-});
-</script>
+    $pdo->prepare('UPDATE formules SET places_restantes = ? WHERE id = ?')
+        ->execute([$nouvellesPlaces, $paiement['formule_id']]);
+}
 
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+$pdo->commit();
+
+// 7. On génère le code d'accompagnement s'il n'en a pas déjà un
+$stmtUser = $pdo->prepare('SELECT id, code_accompagnement FROM users WHERE id = ?');
+$stmtUser->execute([$paiement['user_id']]);
+$userPaiement = $stmtUser->fetch();
+
+if ($userPaiement && empty($userPaiement['code_accompagnement'])) {
+    $code = AuthService::generateCodeAccompagnement();
+    $pdo->prepare('UPDATE users SET code_accompagnement = ? WHERE id = ?')->execute([$code, $userPaiement['id']]);
+    $userPaiement['code_accompagnement'] = $code;
+}
+
+// 8. Envoi des emails : le matricule à l'utilisateur, la notification à l'administrateur.
+// Ces envois ne doivent jamais bloquer le flux si le SMTP échoue, d'où le try/catch.
+try {
+    $stmtUserComplet = $pdo->prepare('SELECT nom_complet, email FROM users WHERE id = ?');
+    $stmtUserComplet->execute([$paiement['user_id']]);
+    $userComplet = $stmtUserComplet->fetch();
+
+    if ($userComplet) {
+        MailService::sendMatriculeEmail(
+            $userComplet['email'],
+            $userComplet['nom_complet'] ?? '',
+            $userPaiement['code_accompagnement'] ?? ''
+        );
+
+        MailService::sendAdminPaymentNotification(
+            $userComplet['email'],
+            $userComplet['nom_complet'] ?? '',
+            $formuleNom,
+            (float) $paiement['montant'],
+            $paiement['reference']
+        );
+    }
+} catch (\Throwable $e) {
+    error_log('Erreur envoi email post-paiement : ' . $e->getMessage());
+}
+
+unset($_SESSION['formule_choisie']);
+
+// 9. Le profil d'orientation a déjà été rempli AVANT le paiement (nouveau flux).
+// On récupère les dernières informations saisies pour construire le message WhatsApp.
+$stmtProfil = $pdo->prepare('
+    SELECT * FROM profils_orientation
+    WHERE user_id = ?
+    ORDER BY created_at DESC
+    LIMIT 1
+');
+$stmtProfil->execute([$paiement['user_id']]);
+$profil = $stmtProfil->fetch();
+
+if (!$profil) {
+    // Filet de sécurité : si aucun profil n'est trouvé (cas anormal), on renvoie au formulaire
+    header('Location: /orientation-formulaire.php');
+    exit;
+}
+
+$lignes = [
+    "Bonjour, je suis {$profil['prenom']} {$profil['nom']}.",
+    "Mon matricule d'accompagnement : {$userPaiement['code_accompagnement']}",
+    "Série : {$profil['serie']}",
+    "Mention : {$profil['mention']}",
+    "Moyenne : {$profil['moyenne']}/20",
+];
+if (!empty($profil['profession_reve'])) {
+    $lignes[] = "Profession envisagée : {$profil['profession_reve']}";
+}
+if (!empty($profil['ecole_reve'])) {
+    $lignes[] = "Université envisagée : {$profil['ecole_reve']}";
+}
+$lignes[] = "Je souhaite être accompagné(e) dans le choix de ma filière.";
+
+$message = implode("\n", $lignes);
+$numeroWhatsapp = '22953096255'; // +229 53 09 62 55, sans le "+" ni espaces
+$whatsappUrl = 'https://wa.me/' . $numeroWhatsapp . '?text=' . rawurlencode($message);
+
+header('Location: ' . $whatsappUrl);
+exit;

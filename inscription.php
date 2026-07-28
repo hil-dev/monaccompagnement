@@ -15,7 +15,7 @@ if (isset($_GET['formule'])) {
 
 // Si déjà connecté : on va direct au paiement si une formule est en attente, sinon à l'accueil
 if (AuthService::isLoggedIn()) {
-    header('Location: ' . (isset($_SESSION['formule_choisie']) ? '/paiement.php' : '/index.php'));
+    header('Location: ' . (isset($_SESSION['formule_choisie']) ? '/orientation-formulaire.php' : '/index.php'));
     exit;
 }
 

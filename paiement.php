@@ -33,6 +33,16 @@ $stmtUser = $pdo->prepare('SELECT * FROM users WHERE id = ?');
 $stmtUser->execute([AuthService::currentUserId()]);
 $user = $stmtUser->fetch();
 
+// Sécurité : on n'autorise le paiement que si le profil d'orientation a bien été rempli avant
+$stmtProfil = $pdo->prepare('SELECT COUNT(*) FROM profils_orientation WHERE user_id = ?');
+$stmtProfil->execute([$user['id']]);
+$profilRempli = (bool) $stmtProfil->fetchColumn();
+
+if (!$profilRempli) {
+    header('Location: /orientation-formulaire.php?formule=' . urlencode($formuleCode));
+    exit;
+}
+
 $erreur = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

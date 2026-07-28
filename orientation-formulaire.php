@@ -14,8 +14,13 @@ $stmtUser = $pdo->prepare('SELECT * FROM users WHERE id = ?');
 $stmtUser->execute([AuthService::currentUserId()]);
 $user = $stmtUser->fetch();
 
-// Sécurité : cette page n'a de sens que pour un utilisateur ayant déjà payé (et donc ayant un matricule)
-if (!$user || empty($user['code_accompagnement'])) {
+// On mémorise la formule choisie AVANT toute redirection, pour ne jamais la perdre
+if (isset($_GET['formule'])) {
+    $_SESSION['formule_choisie'] = $_GET['formule'];
+}
+
+// Sécurité : ce formulaire n'a de sens que si une formule est en attente de paiement
+if (!$user || !isset($_SESSION['formule_choisie'])) {
     header('Location: /index.php#formules');
     exit;
 }
@@ -85,27 +90,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->commit();
 
-            // Construction du message WhatsApp pré-rempli
-            $lignes = [
-                "Bonjour, je suis {$prenom} {$nom}.",
-                "Mon matricule d'accompagnement : {$user['code_accompagnement']}",
-                "Série : {$serie}",
-                "Mention : {$mention}",
-                "Moyenne : {$moyenne}/20",
-            ];
-            if ($professionReve !== '') {
-                $lignes[] = "Profession envisagée : {$professionReve}";
-            }
-            if ($ecoleReve !== '') {
-                $lignes[] = "Université envisagée : {$ecoleReve}";
-            }
-            $lignes[] = "Je souhaite être accompagné(e) dans le choix de ma filière.";
-
-            $message = implode("\n", $lignes);
-            $numeroWhatsapp = '22953096255'; // +229 53 09 62 55, sans le "+" ni espaces
-            $whatsappUrl = 'https://wa.me/' . $numeroWhatsapp . '?text=' . rawurlencode($message);
-
-            header('Location: ' . $whatsappUrl);
+            // Le profil est enregistré, place au paiement pour finaliser l'accompagnement
+            header('Location: /paiement.php');
             exit;
         } catch (\Throwable $e) {
             if ($pdo->inTransaction()) {
@@ -123,11 +109,10 @@ require_once __DIR__ . '/includes/header.php';
 
 <section class="auth-page">
     <div class="auth-card">
-        <p class="eyebrow eyebrow-center">Dernière étape</p>
+        <p class="eyebrow eyebrow-center">Avant le paiement</p>
         <h1 class="auth-title">Complète ton profil d'orientation</h1>
         <p class="auth-note" style="margin-bottom: 20px;">
-            Ces informations seront transmises à ton conseiller d'orientation sur WhatsApp, avec ton matricule
-            <strong><?= htmlspecialchars($user['code_accompagnement']) ?></strong>.
+            Ces informations seront transmises à ton conseiller d'orientation sur WhatsApp juste après ton paiement.
         </p>
 
         <?php if ($erreur): ?>
@@ -166,7 +151,7 @@ require_once __DIR__ . '/includes/header.php';
             <label for="ecole_reve">Université envisagée <span style="font-weight:400;">(optionnel)</span></label>
             <input type="text" id="ecole_reve" name="ecole_reve" value="<?= htmlspecialchars($_POST['ecole_reve'] ?? '') ?>">
 
-            <button type="submit" class="btn btn-primary btn-block" style="margin-top: 12px;">Envoyer</button>
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top: 12px;">Continuer vers le paiement</button>
         </form>
     </div>
 </section>
