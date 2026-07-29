@@ -2,17 +2,16 @@
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/src/Database/Database.php';
 require_once __DIR__ . '/src/Payment/FedaPayService.php';
-require_once __DIR__ . '/src/Auth/AuthService.php';
+require_once __DIR__ . '/src/Auth/AuthService.php'; // conservé uniquement pour generateCodeAccompagnement()
 require_once __DIR__ . '/src/Mail/MailService.php';
 
 use App\Auth\AuthService;
-
 use App\Database\Database;
 use App\Payment\FedaPayService;
 use App\Mail\MailService;
 
 if (!isset($_GET['id'])) {
-    header('Location: /profil.php?payment=error');
+    header('Location: /index.php?payment=error');
     exit;
 }
 
@@ -24,7 +23,7 @@ try {
     $transaction = FedaPayService::fetchTransaction($transactionId);
 } catch (\Throwable $e) {
     error_log('Erreur vérification transaction FedaPay : ' . $e->getMessage());
-    header('Location: /profil.php?payment=error');
+    header('Location: /index.php?payment=error');
     exit;
 }
 
@@ -35,20 +34,20 @@ $paiement = $stmt->fetch();
 
 if (!$paiement) {
     error_log("Paiement introuvable pour la transaction FedaPay {$transactionId}");
-    header('Location: /profil.php?payment=error');
+    header('Location: /index.php?payment=error');
     exit;
 }
 
 // 3. Idempotence : si déjà traité, on ne refait rien
 if ($paiement['statut'] === 'reussi') {
-    header('Location: /profil.php?payment=already_processed');
+    header('Location: https://chat.whatsapp.com/DGKN6QRai9ICpUfOCaHVZ6?s=cl&p=a&ilr=1');
     exit;
 }
 
 // 4. Le paiement n'a pas été approuvé côté FedaPay
 if (($transaction['status'] ?? '') !== 'approved') {
     $pdo->prepare('UPDATE paiements SET statut = "echoue" WHERE id = ?')->execute([$paiement['id']]);
-    header('Location: /profil.php?payment=declined');
+    header('Location: /index.php?payment=declined');
     exit;
 }
 
@@ -59,7 +58,7 @@ $montantDb   = (int) $paiement['montant'];
 if ($montantFeda !== $montantDb) {
     error_log("❌ Montant incohérent — DB: {$montantDb} | FedaPay: {$montantFeda} | transaction {$transactionId}");
     $pdo->prepare('UPDATE paiements SET statut = "echoue" WHERE id = ?')->execute([$paiement['id']]);
-    header('Location: /profil.php?payment=error');
+    header('Location: /index.php?payment=error');
     exit;
 }
 
@@ -91,54 +90,15 @@ if ($formuleRow) {
 
 $pdo->commit();
 
-// 7. On génère le code d'accompagnement s'il n'en a pas déjà un
-$stmtUser = $pdo->prepare('SELECT id, code_accompagnement FROM users WHERE id = ?');
-$stmtUser->execute([$paiement['user_id']]);
-$userPaiement = $stmtUser->fetch();
 
-if ($userPaiement && empty($userPaiement['code_accompagnement'])) {
-    $code = AuthService::generateCodeAccompagnement();
-    $pdo->prepare('UPDATE users SET code_accompagnement = ? WHERE id = ?')->execute([$code, $userPaiement['id']]);
-    $userPaiement['code_accompagnement'] = $code;
-}
-
-// 8. Envoi des emails : le matricule à l'utilisateur, la notification à l'administrateur.
-// Ces envois ne doivent jamais bloquer le flux si le SMTP échoue, d'où le try/catch.
-try {
-    $stmtUserComplet = $pdo->prepare('SELECT nom_complet, email FROM users WHERE id = ?');
-    $stmtUserComplet->execute([$paiement['user_id']]);
-    $userComplet = $stmtUserComplet->fetch();
-
-    if ($userComplet) {
-        MailService::sendMatriculeEmail(
-            $userComplet['email'],
-            $userComplet['nom_complet'] ?? '',
-            $userPaiement['code_accompagnement'] ?? ''
-        );
-
-        MailService::sendAdminPaymentNotification(
-            $userComplet['email'],
-            $userComplet['nom_complet'] ?? '',
-            $formuleNom,
-            (float) $paiement['montant'],
-            $paiement['reference']
-        );
-    }
-} catch (\Throwable $e) {
-    error_log('Erreur envoi email post-paiement : ' . $e->getMessage());
-}
-
-unset($_SESSION['formule_choisie']);
-
-// 9. Le profil d'orientation a déjà été rempli AVANT le paiement (nouveau flux).
-// On récupère les dernières informations saisies pour construire le message WhatsApp.
+// 7. Le profil d'orientation a déjà été rempli AVANT le paiement (accès libre, via guest_token).
 $stmtProfil = $pdo->prepare('
     SELECT * FROM profils_orientation
-    WHERE user_id = ?
+    WHERE guest_token = ?
     ORDER BY created_at DESC
     LIMIT 1
 ');
-$stmtProfil->execute([$paiement['user_id']]);
+$stmtProfil->execute([$paiement['guest_token']]);
 $profil = $stmtProfil->fetch();
 
 if (!$profil) {
@@ -147,24 +107,40 @@ if (!$profil) {
     exit;
 }
 
-$lignes = [
-    "Bonjour, je suis {$profil['prenom']} {$profil['nom']}.",
-    "Mon matricule d'accompagnement : {$userPaiement['code_accompagnement']}",
-    "Série : {$profil['serie']}",
-    "Mention : {$profil['mention']}",
-    "Moyenne : {$profil['moyenne']}/20",
-];
-if (!empty($profil['profession_reve'])) {
-    $lignes[] = "Profession envisagée : {$profil['profession_reve']}";
-}
-if (!empty($profil['ecole_reve'])) {
-    $lignes[] = "Université envisagée : {$profil['ecole_reve']}";
-}
-$lignes[] = "Je souhaite être accompagné(e) dans le choix de ma filière.";
+// 8. Génération du code d'accompagnement, stocké directement sur le paiement (pas de compte utilisateur)
+$codeAccompagnement = AuthService::generateCodeAccompagnement();
+$pdo->prepare('UPDATE paiements SET code_accompagnement = ? WHERE id = ?')
+    ->execute([$codeAccompagnement, $paiement['id']]);
 
-$message = implode("\n", $lignes);
-$numeroWhatsapp = '22953096255'; // +229 53 09 62 55, sans le "+" ni espaces
-$whatsappUrl = 'https://wa.me/' . $numeroWhatsapp . '?text=' . rawurlencode($message);
+// 9. Envoi des emails : le matricule à l'utilisateur, la notification à l'administrateur.
+// Ces envois ne doivent jamais bloquer le flux si le SMTP échoue, d'où le try/catch.
+try {
+    $nomComplet = trim($profil['prenom'] . ' ' . $profil['nom']);
 
-header('Location: ' . $whatsappUrl);
+    MailService::sendMatriculeEmail(
+        $profil['email'],
+        $nomComplet,
+        $codeAccompagnement
+    );
+
+    MailService::sendAdminPaymentNotification(
+        $profil['email'],
+        $nomComplet,
+        $formuleNom,
+        (float) $paiement['montant'],
+        $paiement['reference']
+    );
+} catch (\Throwable $e) {
+    error_log('Erreur envoi email post-paiement : ' . $e->getMessage());
+}
+
+unset($_SESSION['formule_choisie']);
+unset($_SESSION['guest_token']);
+
+// Le lien d'un GROUPE WhatsApp (chat.whatsapp.com/...) ne supporte pas le paramètre
+// de pré-remplissage de texte (contrairement à wa.me/NUMERO?text=...). C'est une
+// limitation de WhatsApp : impossible de préremplir un message avant que l'utilisateur
+// rejoigne un groupe. Le récapitulatif complet (nom, matricule, série, mention...) est
+// transmis à l'administrateur par email ci-dessus, pour ne rien perdre.
+header('Location: https://chat.whatsapp.com/DGKN6QRai9ICpUfOCaHVZ6?s=cl&p=a&ilr=1');
 exit;

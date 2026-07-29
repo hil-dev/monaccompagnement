@@ -1,18 +1,11 @@
 <?php
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/src/Database/Database.php';
-require_once __DIR__ . '/src/Auth/AuthService.php';
+require_once __DIR__ . '/src/Auth/AuthService.php'; // conservé uniquement pour les constantes SERIES / MENTIONS
 
-use App\Auth\AuthService;
 use App\Database\Database;
 
-AuthService::requireLogin();
-
 $pdo = Database::getConnection();
-
-$stmtUser = $pdo->prepare('SELECT * FROM users WHERE id = ?');
-$stmtUser->execute([AuthService::currentUserId()]);
-$user = $stmtUser->fetch();
 
 // On mémorise la formule choisie AVANT toute redirection, pour ne jamais la perdre
 if (isset($_GET['formule'])) {
@@ -20,16 +13,24 @@ if (isset($_GET['formule'])) {
 }
 
 // Sécurité : ce formulaire n'a de sens que si une formule est en attente de paiement
-if (!$user || !isset($_SESSION['formule_choisie'])) {
+if (!isset($_SESSION['formule_choisie'])) {
     header('Location: /index.php#formules');
     exit;
 }
+
+// Accès libre, sans compte : on identifie le visiteur par un jeton unique stocké en session,
+// qui permettra de relier son profil et son paiement plus loin dans le parcours.
+if (!isset($_SESSION['guest_token'])) {
+    $_SESSION['guest_token'] = bin2hex(random_bytes(16));
+}
+$guestToken = $_SESSION['guest_token'];
 
 $erreur = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nom = trim($_POST['nom'] ?? '');
     $prenom = trim($_POST['prenom'] ?? '');
+    $email = trim($_POST['email'] ?? '');
     $serie = trim($_POST['serie'] ?? '');
     $mention = trim($_POST['mention'] ?? '');
     $moyenne = trim($_POST['moyenne'] ?? '');
@@ -43,6 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $erreur = 'Merci de renseigner ton nom.';
     } elseif ($prenom === '' || mb_strlen($prenom) < 2) {
         $erreur = 'Merci de renseigner ton prénom.';
+    } elseif ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $erreur = 'Merci de renseigner une adresse email valide.';
     } elseif (!in_array($serie, \App\Auth\AuthService::SERIES, true)) {
         $erreur = 'Merci de sélectionner une série valide.';
     } elseif (!in_array($mention, \App\Auth\AuthService::MENTIONS, true)) {
@@ -53,53 +56,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$erreur) {
         try {
-            $pdo->beginTransaction();
-
             $stmtInsert = $pdo->prepare('
                 INSERT INTO profils_orientation
-                    (user_id, nom, prenom, serie, mention, moyenne, profession_reve, ecole_reve)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    (guest_token, nom, prenom, email, serie, mention, moyenne, profession_reve, ecole_reve)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ');
             $stmtInsert->execute([
-                $user['id'],
+                $guestToken,
                 $nom,
                 $prenom,
+                $email,
                 $serie,
                 $mention,
                 (float) $moyenne,
                 $professionReve !== '' ? $professionReve : null,
                 $ecoleReve !== '' ? $ecoleReve : null,
             ]);
-
-            // On complète également la ligne de l'utilisateur avec les dernières infos saisies
-            $stmtUpdateUser = $pdo->prepare('
-                UPDATE users
-                SET nom_complet = ?, prenom = ?, serie = ?, mention = ?, moyenne = ?, profession_reve = ?, ecole_reve = ?
-                WHERE id = ?
-            ');
-            $stmtUpdateUser->execute([
-                trim($prenom . ' ' . $nom),
-                $prenom,
-                $serie,
-                $mention,
-                (float) $moyenne,
-                $professionReve !== '' ? $professionReve : null,
-                $ecoleReve !== '' ? $ecoleReve : null,
-                $user['id'],
-            ]);
-
-            $pdo->commit();
 
             // Le profil est enregistré, place au paiement pour finaliser l'accompagnement
             header('Location: /paiement.php');
             exit;
         } catch (\Throwable $e) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
             error_log('Erreur enregistrement profil orientation : ' . $e->getMessage());
-            // TEMPORAIRE — DEBUG : affiche l'erreur SQL réelle à l'écran. À RETIRER après diagnostic !
-            $erreur = "Une erreur est survenue lors de l'enregistrement. Réessaie dans un instant. [DEBUG: " . $e->getMessage() . "]";
+            $erreur = "Une erreur est survenue lors de l'enregistrement. Réessaie dans un instant.";
         }
     }
 }
@@ -126,6 +105,9 @@ require_once __DIR__ . '/includes/header.php';
 
             <label for="prenom">Prénom</label>
             <input type="text" id="prenom" name="prenom" required value="<?= htmlspecialchars($_POST['prenom'] ?? '') ?>">
+
+            <label for="email">Adresse email</label>
+            <input type="email" id="email" name="email" required placeholder="toi@exemple.com" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
 
             <label for="serie">Série</label>
             <select id="serie" name="serie" required>

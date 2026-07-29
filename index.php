@@ -1,10 +1,8 @@
 <?php
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/src/Database/Database.php';
-require_once __DIR__ . '/src/Auth/AuthService.php';
 
 use App\Database\Database;
-use App\Auth\AuthService;
 
 $pageTitle = APP_NAME . ' — Du choix de ta filière à l’obtention de ton allocation';
 
@@ -25,28 +23,6 @@ try {
 }
 $nbFormules = count($formules);
 
-// Utilisateur connecté ?
-$currentUser = null;
-$initiales = '';
-if (AuthService::isLoggedIn()) {
-    $pdoUser = Database::getConnection();
-    $stmtUser = $pdoUser->prepare('SELECT * FROM users WHERE id = ?');
-    $stmtUser->execute([AuthService::currentUserId()]);
-    $currentUser = $stmtUser->fetch();
-
-    if ($currentUser) {
-        $localPart = explode('@', $currentUser['email'])[0];
-        $morceaux = preg_split('/[._\-]/', $localPart);
-        $morceaux = array_filter($morceaux);
-        $morceaux = array_values($morceaux);
-        if (count($morceaux) >= 2) {
-            $initiales = strtoupper(mb_substr($morceaux[0], 0, 1) . mb_substr($morceaux[1], 0, 1));
-        } else {
-            $initiales = strtoupper(mb_substr($localPart, 0, 2));
-        }
-    }
-}
-
 require_once __DIR__ . '/includes/header.php';
 ?>
 
@@ -58,44 +34,6 @@ require_once __DIR__ . '/includes/header.php';
 <header class="topbar">
     <div class="topbar-inner">
         <span class="brand">APRÈS<strong>BAC</strong></span>
-
-        <?php if ($currentUser): ?>
-            <div class="user-menu">
-                <button class="user-avatar" id="userAvatarBtn" type="button" aria-label="Menu du compte">
-                    <span class="user-avatar-ring">
-                        <span class="user-avatar-initials"><?= htmlspecialchars($initiales) ?></span>
-                    </span>
-                </button>
-
-                <div class="user-dropdown" id="userDropdown">
-                    <div class="user-dropdown-header">
-                        <span class="user-dropdown-avatar"><?= htmlspecialchars($initiales) ?></span>
-                        <div class="user-dropdown-identity">
-                            <p class="user-dropdown-name">Mon compte</p>
-                            <p class="user-dropdown-email"><?= htmlspecialchars($currentUser['email']) ?></p>
-                        </div>
-                    </div>
-
-                    <div class="user-dropdown-divider"></div>
-
-                    <a href="/profil.php" class="user-dropdown-item">
-                        <span class="user-dropdown-icon">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                        </span>
-                        Mon profil
-                    </a>
-
-                    <a href="/auth/logout.php" class="user-dropdown-item user-dropdown-item-danger">
-                        <span class="user-dropdown-icon">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                        </span>
-                        Se déconnecter
-                    </a>
-                </div>
-            </div>
-        <?php else: ?>
-            <a href="/connexion.php" class="btn btn-ghost">Se connecter</a>
-        <?php endif; ?>
     </div>
 </header>
 
@@ -175,7 +113,7 @@ require_once __DIR__ . '/includes/header.php';
                 <?php if ($complet): ?>
                     <button class="btn btn-disabled" disabled>Places épuisées</button>
                 <?php else: ?>
-                    <a href="<?= $currentUser ? '/orientation-formulaire.php?formule=' . htmlspecialchars($f['code']) : '/connexion.php?formule=' . htmlspecialchars($f['code']) ?>" class="btn btn-rouge">
+                    <a href="/orientation-formulaire.php?formule=<?= htmlspecialchars($f['code']) ?>" class="btn btn-rouge">
                         Je passe à l'action
                     </a>
                 <?php endif; ?>
@@ -192,25 +130,3 @@ require_once __DIR__ . '/includes/header.php';
 
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
-
-<?php if ($currentUser): ?>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('userAvatarBtn');
-    const menu = document.getElementById('userDropdown');
-
-    btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        menu.classList.toggle('is-open');
-        btn.classList.toggle('is-active');
-    });
-
-    document.addEventListener('click', () => {
-        menu.classList.remove('is-open');
-        btn.classList.remove('is-active');
-    });
-
-    menu.addEventListener('click', (e) => e.stopPropagation());
-});
-</script>
-<?php endif; ?>

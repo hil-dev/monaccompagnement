@@ -1,14 +1,10 @@
 <?php
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/src/Database/Database.php';
-require_once __DIR__ . '/src/Auth/AuthService.php';
 require_once __DIR__ . '/src/Payment/FedaPayService.php';
 
-use App\Auth\AuthService;
 use App\Database\Database;
 use App\Payment\FedaPayService;
-
-AuthService::requireLogin();
 
 $pdo = Database::getConnection();
 
@@ -29,16 +25,18 @@ if (!$formule) {
 
 $_SESSION['formule_choisie'] = $formuleCode;
 
-$stmtUser = $pdo->prepare('SELECT * FROM users WHERE id = ?');
-$stmtUser->execute([AuthService::currentUserId()]);
-$user = $stmtUser->fetch();
+// Accès libre, sans compte : on retrouve le visiteur via son jeton de session
+$guestToken = $_SESSION['guest_token'] ?? null;
 
 // Sécurité : on n'autorise le paiement que si le profil d'orientation a bien été rempli avant
-$stmtProfil = $pdo->prepare('SELECT COUNT(*) FROM profils_orientation WHERE user_id = ?');
-$stmtProfil->execute([$user['id']]);
-$profilRempli = (bool) $stmtProfil->fetchColumn();
+$profil = null;
+if ($guestToken) {
+    $stmtProfil = $pdo->prepare('SELECT * FROM profils_orientation WHERE guest_token = ? ORDER BY created_at DESC LIMIT 1');
+    $stmtProfil->execute([$guestToken]);
+    $profil = $stmtProfil->fetch();
+}
 
-if (!$profilRempli) {
+if (!$profil) {
     header('Location: /orientation-formulaire.php?formule=' . urlencode($formuleCode));
     exit;
 }
@@ -51,10 +49,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // 1. On enregistre le paiement en base AVANT de contacter FedaPay (statut "en_attente")
         $stmtInsert = $pdo->prepare('
-            INSERT INTO paiements (user_id, formule_id, montant, statut, reference)
+            INSERT INTO paiements (guest_token, formule_id, montant, statut, reference)
             VALUES (?, ?, ?, "en_attente", ?)
         ');
-        $stmtInsert->execute([$user['id'], $formule['id'], $formule['prix'], $reference]);
+        $stmtInsert->execute([$guestToken, $formule['id'], $formule['prix'], $reference]);
         $paiementId = (int) $pdo->lastInsertId();
 
         // 2. On crée la transaction FedaPay avec le montant exact du plan choisi
@@ -64,12 +62,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'currency'        => ['iso' => 'XOF'],
             'callback_url'    => rtrim(APP_URL, '/') . '/paiement-callback.php',
             'customer'        => [
-                'email' => $user['email'],
+                'email' => $profil['email'],
             ],
             'custom_metadata' => [
                 'reference'    => $reference,
                 'paiement_id'  => $paiementId,
-                'user_id'      => $user['id'],
+                'guest_token'  => $guestToken,
                 'formule_id'   => $formule['id'],
                 'formule_code' => $formule['code'],
             ],
