@@ -113,6 +113,7 @@ require_once __DIR__ . '/includes/header.php';
             <p class="hero-note" style="color:#e02424;">Déjà <strong>des centaines de bacheliers</strong> accompagnés cette année.</p>
         </div>
         <div class="hero-illustration">
+            <a href="#formules" class="btn btn-primary hero-cta-mobile">Obtenir rapidement ma place</a>
             <div class="illustration-frame">
                 <img src="/assets/img/etudiant-reflexion.png" alt="Illustration d'un étudiant en pleine réflexion sur son orientation" />
             </div>
