@@ -98,7 +98,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->rollBack();
             }
             error_log('Erreur enregistrement profil orientation : ' . $e->getMessage());
-            $erreur = "Une erreur est survenue lors de l'enregistrement. Réessaie dans un instant.";
+            // TEMPORAIRE — DEBUG : affiche l'erreur SQL réelle à l'écran. À RETIRER après diagnostic !
+            $erreur = "Une erreur est survenue lors de l'enregistrement. Réessaie dans un instant. [DEBUG: " . $e->getMessage() . "]";
         }
     }
 }
