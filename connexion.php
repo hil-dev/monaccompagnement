@@ -8,8 +8,13 @@ use App\Auth\AuthService;
 use App\Database\Database;
 use App\Mail\MailService;
 
+// On mémorise la formule choisie AVANT toute redirection, pour ne jamais la perdre
+if (isset($_GET['formule'])) {
+    $_SESSION['formule_choisie'] = $_GET['formule'];
+}
+
 if (AuthService::isLoggedIn()) {
-    header('Location: /index.php');
+    header('Location: ' . (isset($_SESSION['formule_choisie']) ? '/orientation-formulaire.php' : '/index.php'));
     exit;
 }
 

@@ -110,7 +110,7 @@ require_once __DIR__ . '/includes/header.php';
                 réaliste et qui te ressemble.
             </p>
             <a href="#formules" class="btn btn-primary">Obtenir rapidement ma place</a>
-            <p class="hero-note">Déjà <strong>des centaines de bacheliers</strong> accompagnés cette année.</p>
+            <p class="hero-note" style="color:#e02424;">Déjà <strong>des centaines de bacheliers</strong> accompagnés cette année.</p>
         </div>
         <div class="hero-illustration">
             <div class="illustration-frame">
@@ -174,7 +174,7 @@ require_once __DIR__ . '/includes/header.php';
                 <?php if ($complet): ?>
                     <button class="btn btn-disabled" disabled>Places épuisées</button>
                 <?php else: ?>
-                    <a href="<?= $currentUser ? '/orientation-formulaire.php?formule=' . htmlspecialchars($f['code']) : '/inscription.php?formule=' . htmlspecialchars($f['code']) ?>" class="btn btn-rouge">
+                    <a href="<?= $currentUser ? '/orientation-formulaire.php?formule=' . htmlspecialchars($f['code']) : '/connexion.php?formule=' . htmlspecialchars($f['code']) ?>" class="btn btn-rouge">
                         Je passe à l'action
                     </a>
                 <?php endif; ?>
