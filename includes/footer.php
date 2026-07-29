@@ -1,15 +1,5 @@
 <footer class="site-footer">
         <div class="footer-inner">
-            <div class="footer-newsletter">
-                <p class="newsletter-title">Newsletter</p>
-                <p class="newsletter-sub">Nouvelles sorties et offres exclusives directement dans votre boîte mail.</p>
-                <form class="newsletter-form" id="newsletterForm" novalidate>
-                    <input type="email" id="newsletterEmail" name="email" class="newsletter-input" placeholder="Ton adresse email" required>
-                    <button type="submit" class="newsletter-btn">Envoyer</button>
-                </form>
-                <p class="newsletter-message" id="newsletterMessage" role="status" aria-live="polite"></p>
-            </div>
-
             <div class="footer-bottom">
                 <p class="footer-brand">APRESBAC</p>
                 <nav class="footer-links">
