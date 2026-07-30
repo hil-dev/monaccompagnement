@@ -101,13 +101,9 @@ require_once __DIR__ . '/includes/header.php';
                     <div class="jauge">
                         <div class="jauge-remplie" style="width: <?= $pourcentageRestant ?>%"></div>
                     </div>
-                    <p class="places-texte">
-                        <?php if ($complet): ?>
-                            Complet
-                        <?php else: ?>
-                            <strong><?= (int)$f['places_restantes'] ?></strong> place<?= $f['places_restantes'] > 1 ? 's' : '' ?> restante<?= $f['places_restantes'] > 1 ? 's' : '' ?> sur <?= (int)$f['places_totales'] ?>
-                        <?php endif; ?>
-                    </p>
+                    <?php if ($complet): ?>
+                        <p class="places-texte">Complet</p>
+                    <?php endif; ?>
                 </div>
 
                 <?php if ($complet): ?>
