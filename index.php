@@ -4,7 +4,7 @@ require_once __DIR__ . '/src/Database/Database.php';
 
 use App\Database\Database;
 
-$pageTitle = APP_NAME . ' — Du choix de ta filière à l’obtention de ton allocation';
+$pageTitle = APP_NAME . ' — De ton inscription à ton premier virement d’allocation';
 
 // Récupération des formules depuis la BDD (avec repli si la BDD n'est pas encore configurée)
 try {
@@ -17,8 +17,15 @@ try {
     unset($f);
 } catch (\Throwable $e) {
     $formules = [
-        ['code' => 'premium', 'nom' => 'Premium', 'prix' => 982, 'places_restantes' => 210, 'places_totales' => 210,
-            'avantages' => ['Bilan d’orientation personnalisé', 'Accès au guide des filières', 'Support par email']],
+        ['code' => 'premium', 'nom' => 'Premium', 'prix' => 2000, 'places_restantes' => 210, 'places_totales' => 210,
+            'avantages' => [
+                'Espace de discussion WhatsApp privé',
+                'Accompagnement concernant l’inscription',
+                'Aides et conseils pour l’ouverture de compte bancaire',
+                'Assistance complète pour la procédure de la demande d’allocation en ligne',
+                'Suivi de la demande jusqu’au premier virement',
+                'Assistance en cas de réclamation',
+            ]],
     ];
 }
 $nbFormules = count($formules);
@@ -26,70 +33,79 @@ $nbFormules = count($formules);
 require_once __DIR__ . '/includes/header.php';
 ?>
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+
+<div class="home-v2">
+
 <div class="urgency-bar">
-    <span class="urgency-dot"></span>
-    <strong>Places limitées</strong> : Programme d’accompagnement forfaitaire, personnalisé et à durée limitée, spécialement conçu pour accompagner les bacheliers 2026 dans le choix de leurs filières en ligne. Bénéficiez d’un encadrement professionnel pour faire le bon choix, au bon moment.
+    <span class="urgency-dot" aria-hidden="true"></span>
+    <p class="urgency-text">Vous êtes nouveau bachelier boursier ou secouru ? Nous vous prenons en charge de A à Z. Notre programme d’accompagnement personnalisé vous suit depuis votre inscription jusqu’à ce que vous perceviez votre première allocation universitaire.</p>
 </div>
 
-<header class="topbar">
-    <div class="topbar-inner">
-        <span class="brand">APRÈS<strong>BAC</strong></span>
-    </div>
-</header>
-
-<section class="hero">
-    <div class="hero-inner">
-        <div class="hero-text">
-            <p class="eyebrow">Bacheliers 2026 · Orientation garantie</p>
-            <h1>Ton bac est en poche.<br>Reste plus qu'à choisir <em>la bonne filière</em>, pas n'importe laquelle. Il te faut un guide.</h1>
-            <p class="hero-sub">
-                Filière, université, ville, bourse : des dizaines de choix, une seule vraie décision à prendre.
-                On t'accompagne pas à pas pour transformer ta série et ta mention en un plan d'orientation clair,
-                réaliste et qui te ressemble.
-            </p>
-            <a href="#formules" class="btn btn-primary">Obtenir rapidement ma place</a>
-            <p class="hero-note" style="color:#e02424;">Déjà <strong>des centaines de bacheliers</strong> accompagnés cette année.</p>
+<div class="hero-wrap">
+    <header class="topbar">
+        <div class="topbar-inner">
+            <span class="brand">APRÈS<strong>BAC</strong></span>
         </div>
-        <div class="hero-illustration">
-            <a href="#formules" class="btn btn-primary hero-cta-mobile">Obtenir rapidement ma place</a>
-            <div class="illustration-frame">
-                <img src="/assets/img/etudiant-reflexion.png" alt="Illustration d'un étudiant en pleine réflexion sur son orientation" />
+    </header>
+
+    <section class="hero">
+        <div class="hero-inner">
+            <div class="hero-text">
+                <p class="eyebrow">Bacheliers 2026</p>
+                <h1>On t’accompagne jusqu’à ton <em>premier virement d’allocation</em>.</h1>
+                <p class="hero-sub">
+                    Inscription, conseils pour l’ouverture de compte bancaire, procédure de la demande d’allocation en ligne, suivi… chaque étape avec toi.
+                </p>
+                
+                <div class="hero-cta">
+                    <a href="#formules" class="btn btn-primary">Obtenir rapidement ma place</a>
+                </div>
+            </div>
+            <div class="hero-illustration">
+                <div class="hero-cta hero-cta-mobile">
+                    <a href="#formules" class="btn btn-primary">Obtenir rapidement ma place</a>
+                </div>
+                <div class="illustration-frame">
+                    <img src="/assets/img/img.png" alt="Illustration d'un étudiant accompagné dans ses démarches" />
+                </div>
             </div>
         </div>
-    </div>
-</section>
-
-<section class="probleme">
-    <div class="section-inner">
-        <h2>Le bac, c'était l'étape facile.</h2>
-        <ul class="probleme-list">
-            <li>Tu as ta série et ta mention, mais aucune idée de la filière qui te correspond vraiment.</li>
-            <li>Tes parents, tes amis, Internet : tout le monde a un avis différent sur ton orientation.</li>
-            <li>Tu as peur de choisir la mauvaise filière et de le regretter dans deux ans.</li>
-            <li>Les délais d'inscription approchent et tu n'as toujours pas de plan clair.</li>
-        </ul>
-        <p class="probleme-conclusion">
-            Ce n'est pas un manque de mérite. C'est un manque d'accompagnement. <strong>C'est exactement ce qu'on corrige ici.</strong>
-        </p>
-    </div>
-</section>
+    </section>
+</div>
 
 <section id="formules" class="formules">
     <div class="section-inner">
-        <p class="eyebrow eyebrow-center">Choisis ton niveau d'accompagnement</p>
-        <h2 class="formules-title">Passe à l'action et bénéfice d'un accompagnemen</h2>
+        <h2 class="formules-title">Sécurise ton allocation en un seul paiement…</h2>
+        <p class="formules-sub">Reste tranquille jusqu’à la réception de ton argent.</p>
 
-        <div class="cartes-formules cartes-formules-<?= $nbFormules ?>" <?= $nbFormules === 1 ? 'style="display:flex; justify-content:center;"' : '' ?>>
+        <div class="cartes-formules cartes-formules-<?= $nbFormules ?>">
             <?php foreach ($formules as $index => $f):
-                $pourcentageRestant = $f['places_totales'] > 0
-                    ? round(($f['places_restantes'] / $f['places_totales']) * 100)
+                $placesOccupees = $f['places_totales'] - $f['places_restantes'];
+                $pourcentageOccupe = $f['places_totales'] > 0
+                    ? round(($placesOccupees / $f['places_totales']) * 100)
                     : 0;
                 $complet = $f['places_restantes'] <= 0;
                 $isFeatured = ($index === $nbFormules - 1) && $nbFormules > 1;
+
+                if ($pourcentageOccupe >= 80) {
+                    $jaugeClasse = 'jauge-critique';
+                } elseif ($pourcentageOccupe >= 50) {
+                    $jaugeClasse = 'jauge-moyenne';
+                } else {
+                    $jaugeClasse = 'jauge-faible';
+                }
             ?>
-            <div class="carte-formule carte-<?= htmlspecialchars($f['code']) ?> <?= $isFeatured ? 'carte-featured' : '' ?>">
+            <article class="carte-formule carte-<?= htmlspecialchars($f['code']) ?> <?= $isFeatured ? 'carte-featured' : '' ?>">
                 <?php if ($isFeatured): ?><span class="badge-populaire">Le plus complet</span><?php endif; ?>
-                <p class="carte-prix"><?= number_format((float)$f['prix'], 0, ',', ' ') ?> <span>FCFA</span></p>
+
+                <div class="carte-head">
+                    <p class="carte-nom">Accompagnement <?= htmlspecialchars($f['nom']) ?></p>
+                    <p class="carte-prix"><?= number_format((float)$f['prix'], 0, ',', ' ') ?> <span>FCFA</span></p>
+                    <p class="carte-unique">Paiement unique</p>
+                </div>
 
                 <ul class="carte-avantages">
                     <?php foreach ($f['avantages'] as $avantage): ?>
@@ -97,32 +113,34 @@ require_once __DIR__ . '/includes/header.php';
                     <?php endforeach; ?>
                 </ul>
 
-                <div class="carte-places">
-                    <div class="jauge">
-                        <div class="jauge-remplie" style="width: <?= $pourcentageRestant ?>%"></div>
+                <div class="carte-foot">
+                    <div class="carte-places">
+                        <p class="places-label">
+                            <?= $complet
+                                ? 'Complet'
+                                : $placesOccupees . ' / ' . $f['places_totales'] . ' places disponibles'
+                            ?>
+                        </p>
+                        <div class="jauge">
+                            <div class="jauge-remplie <?= $jaugeClasse ?>" style="width: <?= $pourcentageOccupe ?>%"></div>
+                        </div>
                     </div>
+
                     <?php if ($complet): ?>
-                        <p class="places-texte">Complet</p>
+                        <button class="btn btn-disabled" disabled>Places épuisées</button>
+                    <?php else: ?>
+                        <a href="/accompagnement-formulaire.php?formule=<?= htmlspecialchars($f['code']) ?>" class="btn btn-rouge">
+                            Je passe à l'action
+                        </a>
                     <?php endif; ?>
+                    <p class="carte-note">Paiement sécurisé par Mobile Money ou carte bancaire</p>
                 </div>
-
-                <?php if ($complet): ?>
-                    <button class="btn btn-disabled" disabled>Places épuisées</button>
-                <?php else: ?>
-                    <a href="/orientation-formulaire.php?formule=<?= htmlspecialchars($f['code']) ?>" class="btn btn-rouge">
-                        Je passe à l'action
-                    </a>
-                <?php endif; ?>
-            </div>
+            </article>
             <?php endforeach; ?>
-        </div>
-
-        <div class="urgency-bar formules-urgency">
-            <span class="urgency-dot"></span>
-            <strong>Places limitées</strong> : Programme d’accompagnement forfaitaire, personnalisé et à durée limitée, spécialement conçu pour accompagner les bacheliers 2026 dans le choix de leurs filières en ligne. Ce programme prend fin <strong>rigoureusement à la fermeture du site officiel de choix de filières (apresmonbac.bj)</strong>. Bénéficiez d’un encadrement professionnel pour faire le bon choix, au bon moment, avant qu'il ne soit trop tard.
         </div>
     </div>
 </section>
 
+</div>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

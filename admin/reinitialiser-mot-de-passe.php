@@ -36,28 +36,38 @@ $pageTitle = 'Nouveau mot de passe admin — ' . APP_NAME;
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<section class="auth-page">
-    <div class="auth-card">
-        <p class="eyebrow eyebrow-center">Dernière étape</p>
-        <h1 class="auth-title">Choisis un nouveau mot de passe</h1>
-        <p class="hero-note" style="margin-bottom:20px;">Vérifie ta boîte mail, saisis le code reçu et ton nouveau mot de passe.</p>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/assets/css/funnel-v2.css">
 
-        <?php if ($erreur): ?>
-            <p class="auth-erreur"><?= htmlspecialchars($erreur) ?></p>
-        <?php endif; ?>
+<section class="auth-page funnel-v2">
+    <div class="funnel-wrap">
+        <a href="/admin/mot-de-passe-oublie.php" class="funnel-back">
+            <span aria-hidden="true">←</span> Retour
+        </a>
 
-        <form method="POST" class="auth-form">
-            <label for="code">Code reçu par email</label>
-            <input type="text" id="code" name="code" required maxlength="6" inputmode="numeric" pattern="[0-9]{6}" placeholder="123456">
+        <div class="auth-card">
+            <h1 class="auth-title">Choisis un nouveau mot de passe</h1>
+            <p class="auth-note">Vérifie ta boîte mail, saisis le code reçu et ton nouveau mot de passe.</p>
 
-            <label for="password">Nouveau mot de passe</label>
-            <input type="password" id="password" name="password" required autocomplete="new-password" placeholder="••••••••">
+            <?php if ($erreur): ?>
+                <p class="auth-erreur" role="alert"><?= htmlspecialchars($erreur) ?></p>
+            <?php endif; ?>
 
-            <label for="password_confirm">Confirme le mot de passe</label>
-            <input type="password" id="password_confirm" name="password_confirm" required autocomplete="new-password" placeholder="••••••••">
+            <form method="POST" class="auth-form">
+                <label for="code">Code reçu par email</label>
+                <input type="text" id="code" name="code" required maxlength="6" inputmode="numeric" pattern="[0-9]{6}" placeholder="123456">
 
-            <button type="submit" class="btn btn-primary btn-block">Réinitialiser le mot de passe</button>
-        </form>
+                <label for="password">Nouveau mot de passe</label>
+                <input type="password" id="password" name="password" required autocomplete="new-password" placeholder="••••••••">
+
+                <label for="password_confirm">Confirme le mot de passe</label>
+                <input type="password" id="password_confirm" name="password_confirm" required autocomplete="new-password" placeholder="••••••••">
+
+                <button type="submit" class="btn btn-primary btn-block">Réinitialiser le mot de passe</button>
+            </form>
+        </div>
     </div>
 </section>
 

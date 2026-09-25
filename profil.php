@@ -1,132 +1,107 @@
 <?php
-require_once __DIR__ . '/config/config.php';
-require_once __DIR__ . '/src/Database/Database.php';
-require_once __DIR__ . '/src/Auth/AuthService.php';
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../src/Database/Database.php';
+require_once __DIR__ . '/../src/Auth/AdminAuthService.php';
 
-use App\Auth\AuthService;
+use App\Auth\AdminAuthService;
 use App\Database\Database;
 
-AuthService::requireLogin();
+AdminAuthService::requireAdmin();
+
+$profilId = (int) ($_GET['id'] ?? 0);
+if ($profilId <= 0) {
+    header('Location: /admin/dashboard.php');
+    exit;
+}
 
 $pdo = Database::getConnection();
-$stmt = $pdo->prepare('SELECT * FROM users WHERE id = ?');
-$stmt->execute([AuthService::currentUserId()]);
-$user = $stmt->fetch();
 
-// Dernier paiement de l'utilisateur (le plus récent)
-$stmtPaiement = $pdo->prepare('
-    SELECT p.*, f.nom AS formule_nom, f.code AS formule_code
+$stmt = $pdo->prepare('SELECT * FROM profils_accompagnement WHERE id = ?');
+$stmt->execute([$profilId]);
+$profil = $stmt->fetch();
+
+if (!$profil) {
+    header('Location: /admin/dashboard.php');
+    exit;
+}
+
+$stmtPaiements = $pdo->prepare('
+    SELECT p.*, f.nom AS formule_nom
     FROM paiements p
     JOIN formules f ON f.id = p.formule_id
-    WHERE p.user_id = ?
+    WHERE p.guest_token = ?
     ORDER BY p.created_at DESC
-    LIMIT 1
 ');
-$stmtPaiement->execute([$user['id']]);
-$dernierPaiement = $stmtPaiement->fetch();
+$stmtPaiements->execute([$profil['guest_token']]);
+$paiements = $stmtPaiements->fetchAll();
 
-$formuleChoisie = $_SESSION['formule_choisie'] ?? null;
-$paymentStatus = $_GET['payment'] ?? null;
+$labels = [
+    'id' => 'ID',
+    'nom' => 'Nom',
+    'prenom' => 'Prénom',
+    'email' => 'Email',
+    'numero_whatsapp' => 'Numéro WhatsApp',
+    'created_at' => 'Créé le',
+];
 
-$pageTitle = 'Mon profil — ' . APP_NAME;
-require_once __DIR__ . '/includes/header.php';
+$pageTitle = trim($profil['nom'] . ' ' . $profil['prenom']) . ' — Dashboard admin — ' . APP_NAME;
+require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<section class="auth-page">
-    <div class="auth-card">
-        <a href="/index.php" class="auth-retour">
-            <span aria-hidden="true">←</span> Retour
-        </a>
+<?php require_once __DIR__ . '/../includes/admin-theme.php'; ?>
 
-        <p class="eyebrow eyebrow-center">Connecté</p>
-        <h1 class="auth-title">Bienvenue , <?= htmlspecialchars($user['nom_complet'] ?? $user['email']) ?></h1>
+<div class="admin-wrap">
+    <a href="/admin/dashboard.php" class="admin-retour">
+        <span aria-hidden="true">←</span> Retour au dashboard
+    </a>
 
-        <?php if ($paymentStatus === 'success'): ?>
-            <p class="auth-succes">✅ Paiement confirmé ! Ton accompagnement est activé.</p>
-        <?php elseif ($paymentStatus === 'declined'): ?>
-            <p class="auth-erreur">Le paiement a été refusé ou annulé. Tu peux réessayer ci-dessous.</p>
-        <?php elseif ($paymentStatus === 'error'): ?>
-            <p class="auth-erreur">Une erreur est survenue lors du paiement. Réessaie ou contacte le support.</p>
-        <?php elseif ($paymentStatus === 'already_processed'): ?>
-            <p class="auth-note">Ce paiement a déjà été validé précédemment.</p>
-        <?php elseif (($_GET['complement'] ?? null) === 'success'): ?>
-            <p class="auth-succes">✅ Profil complété avec succès !</p>
-        <?php endif; ?>
+    <div class="admin-header">
+        <p class="admin-brand"><?= htmlspecialchars(trim($profil['nom'] . ' ' . $profil['prenom'])) ?> <span class="admin-brand-tag">Profil</span></p>
+        <div class="admin-nav">
+            <button type="button" class="theme-toggle" id="themeToggle" title="Changer de thème">🌙</button>
+        </div>
+    </div>
 
-        <p class="auth-note">
-            Compte créé via <strong><?= htmlspecialchars($user['auth_provider']) ?></strong>.
-        </p>
-
-        <?php if (!empty($user['serie'])): ?>
-            <p class="auth-note">Série : <strong><?= htmlspecialchars($user['serie']) ?></strong></p>
-        <?php endif; ?>
-
-        <?php if (!empty($user['code_accompagnement'])): ?>
-            <p class="auth-note">Code d'accompagnement : <strong><?= htmlspecialchars($user['code_accompagnement']) ?></strong></p>
-            <a href="/orientation-formulaire.php" class="btn btn-primary btn-block" style="margin-top: 10px;">
-                Remplir / renvoyer mon profil d'orientation
-            </a>
-        <?php endif; ?>
-
-        <?php
-        // Le profil est-il complet (mention + téléphone) ?
-        $profilIncomplet = empty($user['mention']) || empty($user['numero_telephone']);
-
-        // A-t-il au moins un paiement réussi ?
-        $stmtPaye = $pdo->prepare("SELECT COUNT(*) FROM paiements WHERE user_id = ? AND statut = 'reussi'");
-        $stmtPaye->execute([$user['id']]);
-        $aPayeAuMoinsUneFois = (bool) $stmtPaye->fetchColumn();
-        ?>
-
-        <?php if ($aPayeAuMoinsUneFois && $profilIncomplet): ?>
-            <div class="recap-formule" style="margin-top: 20px; border-color:#f0c14b;">
-                <p class="auth-note">Il te reste une dernière étape pour finaliser ton accompagnement.</p>
-                <a href="/finaliser-profil.php" class="btn btn-primary btn-block" style="margin-top:10px;">
-                    Compléter mon profil
-                </a>
-            </div>
-        <?php endif; ?>
-
-        <?php if ($dernierPaiement): ?>
-            <div class="recap-formule" style="margin-top: 20px;">
-                <p class="recap-formule-nom"><?= htmlspecialchars($dernierPaiement['formule_nom']) ?></p>
-                <p class="recap-formule-prix"><?= number_format((float) $dernierPaiement['montant'], 0, ',', ' ') ?> <span>FCFA</span></p>
-                <p class="statut-badge statut-<?= htmlspecialchars($dernierPaiement['statut']) ?>">
+    <p class="admin-section-title">Informations du profil</p>
+    <div class="admin-detail-grid">
+        <?php foreach ($labels as $champ => $label): ?>
+            <div class="admin-detail-item">
+                <p class="admin-detail-label"><?= htmlspecialchars($label) ?></p>
+                <p class="admin-detail-value">
                     <?php
-                        $labels = [
-                            'reussi' => '✅ Payé',
-                            'en_attente' => '⏳ En attente',
-                            'echoue' => '❌ Échoué',
-                            'annule' => '⛔ Annulé',
-                        ];
-                        echo $labels[$dernierPaiement['statut']] ?? $dernierPaiement['statut'];
+                        $valeur = $profil[$champ] ?? null;
+                        echo ($valeur === null || $valeur === '') ? '—' : htmlspecialchars((string) $valeur);
                     ?>
                 </p>
             </div>
-
-            <?php if ($dernierPaiement['statut'] !== 'reussi'): ?>
-                <a href="/paiement.php?formule=<?= htmlspecialchars($dernierPaiement['formule_code']) ?>" class="btn btn-primary btn-block" style="margin-top: 16px;">
-                    Finaliser le paiement
-                </a>
-            <?php endif; ?>
-        <?php elseif ($formuleChoisie): ?>
-            <p class="auth-note" style="margin-top: 20px;">
-                Formule sélectionnée : <strong><?= htmlspecialchars(ucfirst($formuleChoisie)) ?></strong>
-            </p>
-            <a href="/paiement.php?formule=<?= htmlspecialchars($formuleChoisie) ?>" class="btn btn-primary btn-block">
-                Procéder au paiement
-            </a>
-        <?php else: ?>
-            <p class="auth-note" style="margin-top: 20px;">
-                Tu n'as pas encore choisi de formule d'accompagnement.
-            </p>
-            <a href="/index.php#formules" class="btn btn-outline btn-block">
-                Voir les formules
-            </a>
-        <?php endif; ?>
-
-        <a href="/auth/logout.php" class="btn btn-outline btn-block" style="margin-top: 12px;">Se déconnecter</a>
+        <?php endforeach; ?>
     </div>
-</section>
 
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+    <p class="admin-section-title">Historique des paiements</p>
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+                <tr><th>ID</th><th>Formule</th><th>Montant</th><th>Statut</th><th>Référence</th><th>Code accompagnement</th><th>Date</th></tr>
+            </thead>
+            <tbody>
+                <?php if (empty($paiements)): ?>
+                <tr><td colspan="7">Aucun paiement pour ce profil.</td></tr>
+                <?php else: ?>
+                    <?php foreach ($paiements as $p): ?>
+                    <tr>
+                        <td><?= $p['id'] ?></td>
+                        <td><?= htmlspecialchars($p['formule_nom']) ?></td>
+                        <td><?= number_format((float) $p['montant'], 0, ',', ' ') ?> FCFA</td>
+                        <td class="statut-<?= htmlspecialchars($p['statut']) ?>"><?= htmlspecialchars($p['statut']) ?></td>
+                        <td><?= htmlspecialchars($p['reference']) ?></td>
+                        <td><?= htmlspecialchars($p['code_accompagnement'] ?? '—') ?></td>
+                        <td><?= htmlspecialchars($p['created_at']) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

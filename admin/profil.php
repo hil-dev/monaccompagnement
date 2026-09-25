@@ -8,19 +8,19 @@ use App\Database\Database;
 
 AdminAuthService::requireAdmin();
 
-$userId = (int) ($_GET['id'] ?? 0);
-if ($userId <= 0) {
+$profilId = (int) ($_GET['id'] ?? 0);
+if ($profilId <= 0) {
     header('Location: /admin/dashboard.php');
     exit;
 }
 
 $pdo = Database::getConnection();
 
-$stmt = $pdo->prepare('SELECT * FROM users WHERE id = ?');
-$stmt->execute([$userId]);
-$user = $stmt->fetch();
+$stmt = $pdo->prepare('SELECT * FROM profils_accompagnement WHERE id = ?');
+$stmt->execute([$profilId]);
+$profil = $stmt->fetch();
 
-if (!$user) {
+if (!$profil) {
     header('Location: /admin/dashboard.php');
     exit;
 }
@@ -29,32 +29,22 @@ $stmtPaiements = $pdo->prepare('
     SELECT p.*, f.nom AS formule_nom
     FROM paiements p
     JOIN formules f ON f.id = p.formule_id
-    WHERE p.user_id = ?
+    WHERE p.guest_token = ?
     ORDER BY p.created_at DESC
 ');
-$stmtPaiements->execute([$userId]);
+$stmtPaiements->execute([$profil['guest_token']]);
 $paiements = $stmtPaiements->fetchAll();
-
-// Champs sensibles qu'on n'affiche jamais tels quels dans l'interface admin
-$champsMasques = ['password_hash', 'reset_code', 'reset_code_expires_at', 'verification_code', 'verification_code_expires_at'];
 
 $labels = [
     'id' => 'ID',
-    'nom_complet' => 'Nom complet',
+    'nom_complet' => 'Nom et prénom',
+    'universite' => 'Université',
     'email' => 'Email',
-    'serie' => 'Série',
-    'mention' => 'Mention',
-    'age' => 'Âge',
-    'moyenne' => 'Moyenne',
-    'profession_reve' => 'Profession de rêve',
-    'ecole_reve' => 'École de rêve',
-    'code_accompagnement' => 'Code accompagnement',
-    'auth_provider' => 'Inscrit via',
-    'email_verified' => 'Email vérifié',
+    'numero_whatsapp' => 'Numéro WhatsApp',
     'created_at' => 'Créé le',
 ];
 
-$pageTitle = ($user['nom_complet'] ?? $user['email']) . ' — Dashboard admin — ' . APP_NAME;
+$pageTitle = trim($profil['nom_complet']) . ' — Dashboard admin — ' . APP_NAME;
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
@@ -66,7 +56,7 @@ require_once __DIR__ . '/../includes/header.php';
     </a>
 
     <div class="admin-header">
-        <h1 class="admin-section-title" style="font-size:1.4rem;"><?= htmlspecialchars($user['nom_complet'] ?? $user['email']) ?></h1>
+        <p class="admin-brand"><?= htmlspecialchars(trim($profil['nom_complet'])) ?> <span class="admin-brand-tag">Profil</span></p>
         <div class="admin-nav">
             <button type="button" class="theme-toggle" id="themeToggle" title="Changer de thème">🌙</button>
         </div>
@@ -75,19 +65,12 @@ require_once __DIR__ . '/../includes/header.php';
     <p class="admin-section-title">Informations du profil</p>
     <div class="admin-detail-grid">
         <?php foreach ($labels as $champ => $label): ?>
-            <?php if (in_array($champ, $champsMasques, true)) { continue; } ?>
             <div class="admin-detail-item">
                 <p class="admin-detail-label"><?= htmlspecialchars($label) ?></p>
                 <p class="admin-detail-value">
                     <?php
-                        $valeur = $user[$champ] ?? null;
-                        if ($champ === 'email_verified') {
-                            echo $valeur ? 'Oui' : 'Non';
-                        } elseif ($valeur === null || $valeur === '') {
-                            echo '—';
-                        } else {
-                            echo htmlspecialchars((string) $valeur);
-                        }
+                        $valeur = $profil[$champ] ?? null;
+                        echo ($valeur === null || $valeur === '') ? '—' : htmlspecialchars((string) $valeur);
                     ?>
                 </p>
             </div>
@@ -98,19 +81,20 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="admin-table-wrap">
         <table class="admin-table">
             <thead>
-                <tr><th>ID</th><th>Formule</th><th>Montant</th><th>Statut</th><th>Référence</th><th>Date</th></tr>
+                <tr><th>ID</th><th>Formule</th><th>Montant</th><th>Statut</th><th>Référence</th><th>Code accompagnement</th><th>Date</th></tr>
             </thead>
             <tbody>
                 <?php if (empty($paiements)): ?>
-                <tr><td colspan="6">Aucun paiement pour cet utilisateur.</td></tr>
+                <tr><td colspan="7">Aucun paiement pour ce profil.</td></tr>
                 <?php else: ?>
                     <?php foreach ($paiements as $p): ?>
                     <tr>
                         <td><?= $p['id'] ?></td>
                         <td><?= htmlspecialchars($p['formule_nom']) ?></td>
                         <td><?= number_format((float) $p['montant'], 0, ',', ' ') ?> FCFA</td>
-                        <td><?= htmlspecialchars($p['statut']) ?></td>
+                        <td class="statut-<?= htmlspecialchars($p['statut']) ?>"><?= htmlspecialchars($p['statut']) ?></td>
                         <td><?= htmlspecialchars($p['reference']) ?></td>
+                        <td><?= htmlspecialchars($p['code_accompagnement'] ?? '—') ?></td>
                         <td><?= htmlspecialchars($p['created_at']) ?></td>
                     </tr>
                     <?php endforeach; ?>

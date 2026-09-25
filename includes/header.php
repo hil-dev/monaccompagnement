@@ -17,7 +17,7 @@ if (!$isAdminArea) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $pageTitle ?? APP_NAME ?></title>
-    <meta name="description" content="Un accompagnement complet pour transformer ton résultat au bac en une orientation claire, choisie et assumée.">
+    <meta name="description" content="Un accompagnement complet, de l'inscription au premier virement de ton allocation.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,900&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">

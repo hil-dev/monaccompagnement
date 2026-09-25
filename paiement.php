@@ -1,10 +1,12 @@
 <?php
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/src/Database/Database.php';
-require_once __DIR__ . '/src/Payment/FedaPayService.php';
+require_once __DIR__ . '/src/Payment/SasPayService.php';
+require_once __DIR__ . '/src/Accompagnement/AccompagnementService.php';
 
 use App\Database\Database;
-use App\Payment\FedaPayService;
+use App\Payment\SasPayService;
+use App\Accompagnement\AccompagnementService;
 
 $pdo = Database::getConnection();
 
@@ -28,16 +30,16 @@ $_SESSION['formule_choisie'] = $formuleCode;
 // Accès libre, sans compte : on retrouve le visiteur via son jeton de session
 $guestToken = $_SESSION['guest_token'] ?? null;
 
-// Sécurité : on n'autorise le paiement que si le profil d'orientation a bien été rempli avant
+// Sécurité : on n'autorise le paiement que si le profil a bien été rempli avant
 $profil = null;
 if ($guestToken) {
-    $stmtProfil = $pdo->prepare('SELECT * FROM profils_orientation WHERE guest_token = ? ORDER BY created_at DESC LIMIT 1');
+    $stmtProfil = $pdo->prepare('SELECT * FROM profils_accompagnement WHERE guest_token = ? ORDER BY created_at DESC LIMIT 1');
     $stmtProfil->execute([$guestToken]);
     $profil = $stmtProfil->fetch();
 }
 
 if (!$profil) {
-    header('Location: /orientation-formulaire.php?formule=' . urlencode($formuleCode));
+    header('Location: /accompagnement-formulaire.php?formule=' . urlencode($formuleCode));
     exit;
 }
 
@@ -47,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $reference = 'APB-' . strtoupper(bin2hex(random_bytes(6)));
 
-        // 1. On enregistre le paiement en base AVANT de contacter FedaPay (statut "en_attente")
+        // 1. On enregistre le paiement en base AVANT de contacter SasPay (statut "en_attente")
         $stmtInsert = $pdo->prepare('
             INSERT INTO paiements (guest_token, formule_id, montant, statut, reference)
             VALUES (?, ?, ?, "en_attente", ?)
@@ -55,37 +57,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmtInsert->execute([$guestToken, $formule['id'], $formule['prix'], $reference]);
         $paiementId = (int) $pdo->lastInsertId();
 
-        // 2. On crée la transaction FedaPay avec le montant exact du plan choisi
+        // 2. On crée la session de checkout SasPay avec le montant exact du plan choisi.
+        //    Le return_url contient NOTRE référence : c'est elle qui nous permet de retrouver
+        //    le paiement au retour du client (SasPay ne renvoie aucun paramètre lui-même).
+        $nomComplet = trim($profil['nom_complet'] ?? '');
+
         $payload = [
-            'description'     => 'Accompagnement ' . $formule['nom'] . ' — ' . APP_NAME,
-            'amount'          => (int) $formule['prix'],
-            'currency'        => ['iso' => 'XOF'],
-            'callback_url'    => rtrim(APP_URL, '/') . '/paiement-callback.php',
-            'customer'        => [
-                'email' => $profil['email'],
-            ],
-            'custom_metadata' => [
+            'amount'         => number_format((float) $formule['prix'], 2, '.', ''), // "5000.00"
+            'currency'       => 'XOF',
+            'description'    => 'Accompagnement ' . $formule['nom'] . ' — ' . APP_NAME,
+            'customer_email' => $profil['email'],
+            'customer_name'  => $nomComplet !== '' ? $nomComplet : $profil['email'],
+            'return_url'     => rtrim(APP_URL, '/') . '/paiement-callback.php?ref=' . urlencode($reference),
+            'metadata'       => [
                 'reference'    => $reference,
                 'paiement_id'  => $paiementId,
-                'guest_token'  => $guestToken,
                 'formule_id'   => $formule['id'],
                 'formule_code' => $formule['code'],
             ],
         ];
 
-        $transaction   = FedaPayService::createTransaction($payload);
-        $transactionId = $transaction['id'];
+        $session = SasPayService::createCheckoutSession($payload);
 
-        $pdo->prepare('UPDATE paiements SET fedapay_transaction_id = ? WHERE id = ?')
-            ->execute([$transactionId, $paiementId]);
+        $pdo->prepare('UPDATE paiements SET saspay_session_id = ? WHERE id = ?')
+            ->execute([$session['id'], $paiementId]);
 
-        // 3. On récupère le lien de paiement hébergé et on redirige l'utilisateur dessus
-        $paymentUrl = FedaPayService::getPaymentUrl((int) $transactionId);
-
-        header('Location: ' . $paymentUrl);
+        // 3. On redirige l'utilisateur vers la page de paiement hébergée SasPay
+        header('Location: ' . $session['checkout_url']);
         exit;
     } catch (\Throwable $e) {
-        error_log('Erreur initiation paiement FedaPay : ' . $e->getMessage());
+        error_log('Erreur initiation paiement SasPay : ' . $e->getMessage());
         $erreur = "Une erreur est survenue lors de l'initialisation du paiement. Réessaie dans un instant.";
     }
 }
@@ -96,50 +97,47 @@ $pageTitle = 'Paiement — ' . APP_NAME;
 require_once __DIR__ . '/includes/header.php';
 ?>
 
-<section class="auth-page">
-    <div class="auth-card">
-        <a href="/index.php" class="auth-retour auth-retour-top">
-            <span aria-hidden="true">←</span> Retour à l'accueil
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/assets/css/funnel-v2.css">
+
+<section class="auth-page funnel-v2">
+    <div class="funnel-wrap">
+        <a href="/accompagnement-formulaire.php?formule=<?= urlencode($formuleCode) ?>" class="funnel-back">
+            <span aria-hidden="true">←</span> Modifier mon profil
         </a>
 
-        <p class="eyebrow eyebrow-center">Dernière étape</p>
-        <h1 class="auth-title">Confirme ton paiement</h1>
+        <ol class="funnel-steps" aria-label="Progression">
+            <li class="is-done"><span class="funnel-step-num" aria-hidden="true">✓</span> Ton profil</li>
+            <li class="is-current" aria-current="step"><span class="funnel-step-num">2</span> Paiement</li>
+        </ol>
 
-        <?php if ($erreur): ?>
-            <p class="auth-erreur"><?= htmlspecialchars($erreur) ?></p>
-        <?php endif; ?>
+        <div class="auth-card">
+            <h1 class="auth-title">Confirme ton paiement</h1>
+            <p class="auth-note">Un seul paiement, et ton accompagnement démarre tout de suite.</p>
 
-        <div class="recap-formule">
-            <p class="recap-formule-nom"><?= htmlspecialchars($formule['nom']) ?></p>
-            <p class="recap-formule-prix"><?= number_format((float) $formule['prix'], 0, ',', ' ') ?> <span>FCFA</span></p>
-            <ul class="recap-formule-avantages">
-                <?php foreach ($avantages as $avantage): ?>
-                    <li><?= htmlspecialchars($avantage) ?></li>
-                <?php endforeach; ?>
-            </ul>
+            <?php if ($erreur): ?>
+                <p class="auth-erreur" role="alert"><?= htmlspecialchars($erreur) ?></p>
+            <?php endif; ?>
+
+            <div class="recap-formule">
+                <p class="recap-formule-nom">Accompagnement <?= htmlspecialchars($formule['nom']) ?></p>
+                <p class="recap-formule-prix"><?= number_format((float) $formule['prix'], 0, ',', ' ') ?> <span>FCFA</span></p>
+                <ul class="recap-formule-avantages">
+                    <?php foreach ($avantages as $avantage): ?>
+                        <li><?= htmlspecialchars($avantage) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+
+            <form method="POST">
+                <button type="submit" class="btn btn-primary btn-block">Payer <?= number_format((float) $formule['prix'], 0, ',', ' ') ?> FCFA</button>
+            </form>
+
+            <p class="funnel-secure">Paiement sécurisé par Mobile Money ou carte bancaire.</p>
         </div>
-
-        <form method="POST">
-            <button type="submit" class="btn btn-primary btn-block">Payer <?= number_format((float) $formule['prix'], 0, ',', ' ') ?> FCFA avec FedaPay</button>
-        </form>
-
-        <p class="auth-note" style="margin-top: 18px;">Paiement sécurisé : Mobile Money, carte bancaire, FedaPay.</p>
     </div>
 </section>
-
-<style>
-    @media (max-width: 768px) {
-        .auth-page {
-            position: relative;
-        }
-        .auth-retour-top {
-            position: absolute;
-            top: 16px;
-            left: 16px;
-            margin: 0;
-            z-index: 10;
-        }
-    }
-</style>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

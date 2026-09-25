@@ -5,11 +5,6 @@ ob_start();
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 
-/**
- * Configuration principale de l'application
- * Charge les variables d'environnement depuis .env
- */
-
 // --- Chargement basique du .env (sans dépendance externe) ---
 function loadEnv(string $path): void
 {
@@ -38,26 +33,21 @@ function env(string $key, mixed $default = null): mixed
     return $value !== false && $value !== null ? $value : $default;
 }
 
-// --- Constantes de base ---
 define('APP_NAME', 'APRESBAC');
 define('APP_URL', env('APP_URL', 'http://localhost:8000'));
 define('APP_ENV', env('APP_ENV', 'development'));
 
-// --- Base de données ---
 define('DB_HOST', env('DB_HOST', '127.0.0.1'));
 define('DB_NAME', env('DB_NAME', 'apresbac'));
 define('DB_USER', env('DB_USER', 'root'));
 define('DB_PASS', env('DB_PASS', 'DouDou@1234'));
 
-// --- FedaPay ---
+
 define('FEDAPAY_PUBLIC_KEY', env('FEDAPAY_PUBLIC_KEY', ''));
 define('FEDAPAY_SECRET_KEY', env('FEDAPAY_SECRET_KEY', ''));
-define('FEDAPAY_ENV', env('FEDAPAY_ENV', 'sandbox')); // sandbox | live
+define('FEDAPAY_ENV', env('FEDAPAY_ENV', 'sandbox'));
 
-// --- Google OAuth ---
-define('GOOGLE_CLIENT_ID', env('GOOGLE_CLIENT_ID', ''));
-define('GOOGLE_CLIENT_SECRET', env('GOOGLE_CLIENT_SECRET', ''));
-define('GOOGLE_REDIRECT_URI', env('GOOGLE_REDIRECT_URI', APP_URL . '/auth/google-callback.php'));
+define('SASPAY_SECRET_KEY', 'sk_live__WJ_E3uVPM3ORkqfQupNcYk4MshqiTPAzp2ntqYTVyE');
 
 // --- Envoi d'emails (SMTP) ---
 define('SMTP_HOST', env('SMTP_HOST', 'smtp.hostinger.com'));
@@ -68,6 +58,7 @@ define('SMTP_SECURE', env('SMTP_SECURE', 'ssl')); // ssl | tls
 define('SMTP_FROM_EMAIL', env('SMTP_FROM_EMAIL', 'contact@monaccompagement.online'));
 define('SMTP_FROM_NAME', env('SMTP_FROM_NAME', APP_NAME));
 define('SMTP_REPLY_TO', env('SMTP_REPLY_TO', 'contact@monaccompagement.online'));
+define('ADMIN_WHATSAPP_NUMBER', '+229 53096255');
 
 // --- Sessions sécurisées ---
 const SESSION_LIFETIME_SECONDS = 600; // 10 minutes d'inactivité
@@ -102,6 +93,3 @@ if (APP_ENV === 'development') {
 } else {
     ini_set('display_errors', '0');
 }
-
-define('ADMIN_EMAIL', 'elvisapovo04@gmail.com');
-define('ADMIN_PASSWORD_HASH', '$2b$10$J7THcPWMJYeWFKOe1jj7e.eaSUpNVlG0Sr5rM1WnNgPsVF.TjMiVe'); // = "DouDou@1234""
