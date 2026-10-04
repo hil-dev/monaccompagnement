@@ -146,13 +146,13 @@ require_once __DIR__ . '/../includes/header.php';
         <table class="admin-table">
             <thead>
                 <tr>
-                    <th>ID</th><th>Nom et prénom</th><th>Université</th><th>Email</th><th>Numéro WhatsApp</th><th>Créé le</th>
+                    <th>Rang</th><th>Nom et prénom</th><th>Université</th><th>Email</th><th>Numéro WhatsApp</th><th>Créé le</th>
                 </tr>
             </thead>
             <tbody id="profilsTableBody">
                 <?php foreach ($profils as $i => $p): ?>
                 <tr class="admin-row-link<?= $i >= 10 ? ' admin-row-hidden' : '' ?>" tabindex="0" data-href="/admin/profil.php?id=<?= $p['id'] ?>">
-                    <td><?= $p['id'] ?></td>
+                    <td><?= $i + 1 ?></td>
                     <td><?= htmlspecialchars($p['nom_complet']) ?></td>
                     <td><?= htmlspecialchars($p['universite'] ?? '—') ?></td>
                     <td><?= htmlspecialchars($p['email']) ?></td>
@@ -173,12 +173,12 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="admin-table-wrap">
         <table class="admin-table">
             <thead>
-                <tr><th>ID</th><th>Profil</th><th>Formule</th><th>Montant</th><th>Statut</th><th>Référence</th><th>Code accompagnement</th><th>Date</th></tr>
+                <tr><th>Rang</th><th>Profil</th><th>Formule</th><th>Montant</th><th>Statut</th><th>Référence</th><th>Code accompagnement</th><th>Date</th></tr>
             </thead>
             <tbody id="paiementsTableBody">
                 <?php foreach ($paiements as $i => $p): ?>
                 <tr class="<?= $i >= 10 ? 'admin-row-hidden' : '' ?>">
-                    <td><?= $p['id'] ?></td>
+                    <td><?= $i + 1 ?></td>
                     <td><?= htmlspecialchars(($p['profil_nom_complet'] ?? '') ?: ($p['profil_email'] ?? '—')) ?></td>
                     <td><?= htmlspecialchars($p['formule_nom']) ?></td>
                     <td><?= number_format((float) $p['montant'], 0, ',', ' ') ?> FCFA</td>
