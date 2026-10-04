@@ -23,6 +23,7 @@ $revenuTotal = (float) $stmtRevenu->fetchColumn();
 
 $stmtParStatut = $pdo->query("SELECT statut, COUNT(*) AS nb FROM paiements GROUP BY statut");
 $parStatut = $stmtParStatut->fetchAll(\PDO::FETCH_KEY_PAIR);
+$totalPaiementsReussis = (int) ($parStatut['reussi'] ?? 0);
 
 // Derniers profils d'accompagnement (visiteurs, sans compte)
 $profils = $pdo->query('
@@ -152,7 +153,7 @@ require_once __DIR__ . '/../includes/header.php';
             <tbody id="profilsTableBody">
                 <?php foreach ($profils as $i => $p): ?>
                 <tr class="admin-row-link<?= $i >= 10 ? ' admin-row-hidden' : '' ?>" tabindex="0" data-href="/admin/profil.php?id=<?= $p['id'] ?>">
-                    <td><?= $i + 1 ?></td>
+                    <td><?= $totalProfils - $i ?></td>
                     <td><?= htmlspecialchars($p['nom_complet']) ?></td>
                     <td><?= htmlspecialchars($p['universite'] ?? '—') ?></td>
                     <td><?= htmlspecialchars($p['email']) ?></td>
@@ -178,7 +179,7 @@ require_once __DIR__ . '/../includes/header.php';
             <tbody id="paiementsTableBody">
                 <?php foreach ($paiements as $i => $p): ?>
                 <tr class="<?= $i >= 10 ? 'admin-row-hidden' : '' ?>">
-                    <td><?= $i + 1 ?></td>
+                    <td><?= $totalPaiementsReussis - $i ?></td>
                     <td><?= htmlspecialchars(($p['profil_nom_complet'] ?? '') ?: ($p['profil_email'] ?? '—')) ?></td>
                     <td><?= htmlspecialchars($p['formule_nom']) ?></td>
                     <td><?= number_format((float) $p['montant'], 0, ',', ' ') ?> FCFA</td>
